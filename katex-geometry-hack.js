@@ -1,13 +1,8 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
- * ║                                                                              ║
- * ║   KATEX GEOMETRY HACK - Handwritten Math Lines v1.1                          ║
- * ║   (Updated with Curve Support for Parentheses)                               ║
- * ║                                                                              ║
- * ║   Usage:                                                                     ║
- * ║   import { applyHandwritingGeometry } from './katex-geometry-hack.js';       ║
- * ║   applyHandwritingGeometry();                                                ║
- * ║                                                                              ║
+ * ║   KATEX GEOMETRY HACK - Handwritten Math Lines v1.2 (FIXED)                  ║
+ * ║   - Fixed: Parentheses detection now uses CSS classes instead of text        ║
+ * ║   - Fixed: Square brackets [] remain straight, only () become curvy          ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 
@@ -80,9 +75,6 @@ function createSVG(w, h) {
     return svg;
 }
 
-/**
- * Draw a path into an SVG
- */
 function drawPath(svg, points, settings, color) {
     const stroke = getStroke(points, {
         size: settings.size,
@@ -100,9 +92,6 @@ function drawPath(svg, points, settings, color) {
 // GEOMETRY GENERATORS (Lines & Curves)
 // ════════════════════════════════════════════════════════════════════════════════
 
-/**
- * Generate points for a straight line with wobble
- */
 function handLine(x1, y1, x2, y2, settings) {
     const length = Math.hypot(x2 - x1, y2 - y1);
     const points = [];
@@ -129,13 +118,9 @@ function handLine(x1, y1, x2, y2, settings) {
     return points;
 }
 
-/**
- * Generate points for a Quadratic Bezier curve (for parentheses)
- * p0: start, p1: control, p2: end
- */
 function getBezierPoints(p0, p1, p2, settings) {
     const points = [];
-    const segments = Math.max(settings.minPoints * 2, settings.maxPoints); // More points for curves
+    const segments = Math.max(settings.minPoints * 2, settings.maxPoints);
     
     const dist = Math.hypot(p2[0]-p0[0], p2[1]-p0[1]);
     const wobbleAmount = Math.min(settings.wobble, dist / settings.wobbleScale);
@@ -144,17 +129,14 @@ function getBezierPoints(p0, p1, p2, settings) {
         const t = i / segments;
         const invT = 1 - t;
         
-        // Quadratic Bezier: (1-t)²P0 + 2(1-t)tP1 + t²P2
         let x = invT * invT * p0[0] + 2 * invT * t * p1[0] + t * t * p2[0];
         let y = invT * invT * p0[1] + 2 * invT * t * p1[1] + t * t * p2[1];
 
-        // Apply Wobble
         if (i > 0 && i < segments) {
             x += (Math.random() - 0.5) * wobbleAmount;
             y += (Math.random() - 0.5) * wobbleAmount;
         }
 
-        // Pressure (Taper at ends)
         const pressure = settings.pressureMin + settings.pressureVar * Math.sin(t * Math.PI);
         points.push([x, y, pressure]);
     }
@@ -170,7 +152,6 @@ function processHorizontalLines() {
     document.querySelectorAll(selector).forEach(el => {
         if (el.dataset.hwk) return;
         el.dataset.hwk = '1';
-        
         const rect = el.getBoundingClientRect();
         const w = rect.width;
         if (w < 2) return;
@@ -195,7 +176,6 @@ function processSqrt() {
     const allSqrts = Array.from(document.querySelectorAll('.sqrt'));
     const sqrtToSvg = new Map();
     
-    // Map sqrts to their specific SVGs
     allSqrts.forEach(sqrtEl => {
         const allSvgs = sqrtEl.querySelectorAll('svg');
         for (const svg of allSvgs) {
@@ -234,13 +214,10 @@ function processSqrt() {
         
         const s1 = getRandomizedSettings(); s1.size *= sizeScale * 0.7;
         drawPath(svg, handLine(1, midY + 2, surdW * 0.38, midY, s1), s1, color);
-        
         const s2 = getRandomizedSettings(); s2.size *= sizeScale * 1.1;
         drawPath(svg, handLine(surdW * 0.38, midY, surdW * 0.62, bottomY, s2), s2, color);
-        
         const s3 = getRandomizedSettings(); s3.size *= sizeScale * 1.1;
         drawPath(svg, handLine(surdW * 0.62, bottomY, surdW, topY, s3), s3, color);
-        
         const s4 = getRandomizedSettings(); s4.size *= sizeScale;
         drawPath(svg, handLine(surdW - 1, topY, w - 1, topY, s4), s4, color);
         
@@ -269,10 +246,8 @@ function processArrows() {
         const svg = createSVG(w, h);
         
         drawPath(svg, handLine(3, midY, w - arrowSize - 2, midY, settings), settings, color);
-        
         const s2 = getRandomizedSettings(); s2.size *= 0.9;
         drawPath(svg, handLine(w - arrowSize - 2, midY - arrowSize, w - 2, midY, s2), s2, color);
-        
         const s3 = getRandomizedSettings(); s3.size *= 0.9;
         drawPath(svg, handLine(w - arrowSize - 2, midY + arrowSize, w - 2, midY, s3), s3, color);
         
@@ -287,7 +262,6 @@ function processCancel() {
         const origSvg = el.querySelector('svg');
         if (!origSvg || origSvg.dataset.hwk) return;
         origSvg.dataset.hwk = '1';
-        
         const rect = el.getBoundingClientRect();
         const w = rect.width, h = rect.height;
         const color = getComputedStyle(el).color || '#000';
@@ -295,7 +269,6 @@ function processCancel() {
         const svg = createSVG(w, h);
         
         drawPath(svg, handLine(2, h - 2, w - 2, 2, settings), settings, color);
-        
         origSvg.style.opacity = '0';
         el.style.position = 'relative';
         el.appendChild(svg);
@@ -306,7 +279,6 @@ function processBoxed() {
     document.querySelectorAll('.boxed, .fbox').forEach(el => {
         if (el.dataset.hwk) return;
         el.dataset.hwk = '1';
-        
         const rect = el.getBoundingClientRect();
         const w = rect.width, h = rect.height;
         const color = getComputedStyle(el).borderColor || getComputedStyle(el).color || '#000';
@@ -347,7 +319,6 @@ function processBraces() {
         const s2 = getRandomizedSettings(); s2.size *= 0.7;
         const s3 = getRandomizedSettings(); s3.size *= 0.7;
         const s4 = getRandomizedSettings(); s4.size *= 0.7;
-        
         const yBase = isUnder ? 2 : h-2;
         const yTip = isUnder ? h-2 : 2;
         
@@ -364,22 +335,31 @@ function processBraces() {
 
 /**
  * 🆕 PROCESSOR: Handle Curved Delimiters (Parentheses)
+ * FIXED: Now checks class names and SVG paths instead of text content
  */
 function processDelimiters() {
-    // Look for KaTeX delimiters (delimsizing inside mopen/mclose)
     document.querySelectorAll('.delimsizing').forEach(el => {
         if (el.dataset.hwk) return;
 
-        // Determine if it is likely a parenthesis based on content
-        const text = el.textContent || el.innerText || '';
-        const isLeft = text.includes('(') || (el.closest('.mopen') && !text.includes(')'));
-        const isRight = text.includes(')') || (el.closest('.mclose') && !text.includes('('));
-
-        if (!isLeft && !isRight) return; // Skip if it's likely a bracket [ ] or | |
+        // 1. Detect if it is Left or Right based on parent class
+        const isLeft = el.closest('.mopen');
+        const isRight = el.closest('.mclose');
+        
+        // If it's neither, we can't safely replace it
+        if (!isLeft && !isRight) return;
 
         const origSvg = el.querySelector('svg');
-        // Only process if it has an SVG (big parens). Small ones are fonts.
         if (!origSvg) return;
+
+        // 2. DETECT SHAPE: Check if it is a Curve () or a Line []
+        const pathEl = origSvg.querySelector('path');
+        if (!pathEl) return;
+        const d = pathEl.getAttribute('d') || '';
+
+        // Regex: If path contains Q, C, S, A (curves), it's a Paren. 
+        // If it only contains M, L, H, V (lines), it's a Bracket.
+        // We only want to replace Curves.
+        if (!/[QCSAqcsa]/.test(d)) return;
 
         el.dataset.hwk = '1';
         const rect = el.getBoundingClientRect();
@@ -394,13 +374,13 @@ function processDelimiters() {
         if (isLeft) {
             // ( Curve: Top-Right -> Left-Center -> Bottom-Right
             const p0 = [w - 2, 0];       
-            const p1 = [-w/1.5, h / 2]; // Control point pulls left
+            const p1 = [-w * 0.8, h / 2]; // Control point pulls left
             const p2 = [w - 2, h];       
             drawPath(svg, getBezierPoints(p0, p1, p2, settings), settings, color);
         } else {
             // ) Curve: Top-Left -> Right-Center -> Bottom-Left
             const p0 = [2, 0];           
-            const p1 = [w + w/1.5, h / 2]; // Control point pulls right
+            const p1 = [w + w * 0.8, h / 2]; // Control point pulls right
             const p2 = [2, h];           
             drawPath(svg, getBezierPoints(p0, p1, p2, settings), settings, color);
         }
@@ -422,7 +402,7 @@ function applyHandwritingGeometry() {
     processCancel();
     processBoxed();
     processBraces();
-    processDelimiters(); // <--- Added here
+    processDelimiters(); // <--- This will now work
 }
 
 function clearHandwritingGeometry() {
