@@ -86,11 +86,11 @@ const MASTER_SETTINGS = {
     // ═══════════════════════════════════════════════════════════════════════════
     
     sqrt: {
-        roughness: 3.5,       // Extra rough for square roots [2.0 - 4.0]
-        bowing: 3.0,          // Extra bowing [1.5 - 4.0]
+        roughness: 5,       // Extra rough for square roots [2.0 - 4.0]
+        bowing: 4.0,          // Extra bowing [1.5 - 4.0]
         thinning: 0.4,        // More pressure variation [0.2 - 0.5]
         smoothing: 0.2,       // Less smooth = more rough [0.1 - 0.4]
-        streamline: 0.2,      // Less streamline = more wobbly [0.1 - 0.4]
+        streamline: 0.1,      // Less streamline = more wobbly [0.1 - 0.4]
         wobblePercent: 0.06,  // Position wobble as % of height [0.02 - 0.10]
     },
     
