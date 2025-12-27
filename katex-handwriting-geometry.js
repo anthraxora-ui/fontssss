@@ -88,20 +88,20 @@ export async function initDependencies() {
  */
 const CONFIG = {
     // Stroke appearance
-    size: 2.8,           // Base stroke thickness (1.5 - 4.5)
-    thinning: 0.2,       // Pressure variation (-0.1 - 0.45)
-    smoothing: 0.5,      // Curve smoothing (0 - 1)
-    streamline: 0.5,     // Path simplification (0 - 1)
+    size: 3.0,           // Base stroke thickness (1.5 - 4.5)
+    thinning: 0.25,      // Pressure variation (-0.1 - 0.45)
+    smoothing: 0.4,      // Curve smoothing (0 - 1) - lower = more sketchy
+    streamline: 0.4,     // Path simplification (0 - 1) - lower = more rough
     
-    // Roughness (hand-drawn feel)
-    roughness: 1.5,      // Line roughness (0.8 - 2.2)
-    bowing: 1.0,         // Line bowing/curvature (0.3 - 1.8)
+    // Roughness (hand-drawn feel) - INCREASED for sketchy look!
+    roughness: 2.0,      // Line roughness (0.8 - 3.0) - higher = more wobbly
+    bowing: 1.4,         // Line bowing/curvature (0.3 - 2.0) - higher = more curved
     
-    // Randomization variance
-    sizeVariance: 0.8,
-    thinningVariance: 0.15,
-    roughnessVariance: 0.4,
-    bowingVariance: 0.4,
+    // Randomization variance - INCREASED for more variation!
+    sizeVariance: 1.0,
+    thinningVariance: 0.2,
+    roughnessVariance: 0.6,
+    bowingVariance: 0.5,
 };
 
 /**
@@ -113,13 +113,13 @@ function getSettings() {
     const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
     
     return { 
-        size: clamp(rand(CONFIG.size, CONFIG.sizeVariance), 1.5, 4.5), 
-        thinning: clamp(rand(CONFIG.thinning, CONFIG.thinningVariance), -0.1, 0.45), 
+        size: clamp(rand(CONFIG.size, CONFIG.sizeVariance), 1.5, 5.0), 
+        thinning: clamp(rand(CONFIG.thinning, CONFIG.thinningVariance), -0.1, 0.5), 
         smoothing: CONFIG.smoothing, 
         streamline: CONFIG.streamline, 
         simulatePressure: true, 
-        roughness: clamp(rand(CONFIG.roughness, CONFIG.roughnessVariance), 0.8, 2.2), 
-        bowing: clamp(rand(CONFIG.bowing, CONFIG.bowingVariance), 0.3, 1.8), 
+        roughness: clamp(rand(CONFIG.roughness, CONFIG.roughnessVariance), 1.0, 3.0), 
+        bowing: clamp(rand(CONFIG.bowing, CONFIG.bowingVariance), 0.5, 2.2), 
         disableMultiStroke: true, 
         seed: Math.floor(Math.random() * 10000) 
     };
@@ -391,17 +391,29 @@ function processSquareRoots() {
         const settings = getSettings();
         settings.size = Math.max(22, Math.min(85, vbHeight / 14));
         
-        // Square root shape parameters
+        // EXTRA ROUGHNESS for sqrt - make it more sketchy!
+        settings.roughness = Math.min(3.5, settings.roughness * 1.4);
+        settings.bowing = Math.min(2.5, settings.bowing * 1.3);
+        
+        // Square root shape parameters with slight random wobble
+        const wobble = () => (Math.random() - 0.5) * vbHeight * 0.02;
         const surdWidth = Math.min(vbHeight * 0.85, 850);
-        const topY = vbHeight * 0.04;
-        const bottomY = vbHeight * 0.96;
-        const midY = vbHeight * 0.42;
+        const topY = vbHeight * 0.04 + wobble();
+        const bottomY = vbHeight * 0.96 + wobble();
+        const midY = vbHeight * 0.42 + wobble();
         
         // Draw sqrt shape: small hook, down stroke, up stroke, vinculum (top bar)
-        drawRoughShape(svg, generator.line(0, midY + vbHeight * 0.06, surdWidth * 0.32, midY, settings), color, settings);
-        drawRoughShape(svg, generator.line(surdWidth * 0.32, midY, surdWidth * 0.52, bottomY, settings), color, settings);
-        drawRoughShape(svg, generator.line(surdWidth * 0.52, bottomY, surdWidth, topY, settings), color, settings);
-        drawRoughShape(svg, generator.line(surdWidth - 25, topY, vbWidth, topY, settings), color, settings);
+        // Each segment gets fresh settings for natural variation
+        drawRoughShape(svg, generator.line(0, midY + vbHeight * 0.06, surdWidth * 0.32 + wobble(), midY, settings), color, settings);
+        
+        settings.seed = Math.floor(Math.random() * 10000); // New seed for variation
+        drawRoughShape(svg, generator.line(surdWidth * 0.32, midY, surdWidth * 0.52 + wobble(), bottomY, settings), color, settings);
+        
+        settings.seed = Math.floor(Math.random() * 10000);
+        drawRoughShape(svg, generator.line(surdWidth * 0.52, bottomY, surdWidth + wobble(), topY, settings), color, settings);
+        
+        settings.seed = Math.floor(Math.random() * 10000);
+        drawRoughShape(svg, generator.line(surdWidth - 25, topY, vbWidth, topY + wobble() * 0.5, settings), color, settings);
         
         count++;
     });
