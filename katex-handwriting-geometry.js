@@ -1,31 +1,26 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
- * ║                    KATEX HANDWRITING GEOMETRY v3.3                          ║
- * ║                         Production Ready                                     ║
+ * ║                    KATEX HANDWRITING GEOMETRY v4.0                          ║
+ * ║                    Complete Settings Control Edition                         ║
  * ╠══════════════════════════════════════════════════════════════════════════════╣
  * ║  Transforms KaTeX mathematical notation into hand-drawn style               ║
  * ║  using perfect-freehand and rough.js                                        ║
  * ║                                                                              ║
  * ║  Author: Moon                                                                ║
  * ║  License: MIT                                                                ║
- * ║  Repository: https://github.com/[your-repo]                                 ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  * 
  * USAGE:
  * ──────────────────────────────────────────────────────────────────────────────
- *   import { applyHandwritingGeometry, clearHandwritingGeometry } 
+ *   import { initDependencies, applyHandwritingGeometry, MASTER_SETTINGS } 
  *       from './katex-handwriting-geometry.js';
  *   
- *   // After rendering KaTeX:
- *   await applyHandwritingGeometry();
+ *   // Customize settings before applying:
+ *   MASTER_SETTINGS.sqrt.roughness = 4.0;
  *   
- *   // To reset:
- *   clearHandwritingGeometry();
- * 
- * DEPENDENCIES:
- * ──────────────────────────────────────────────────────────────────────────────
- *   - perfect-freehand: https://esm.sh/perfect-freehand@1.2.0
- *   - rough.js: https://unpkg.com/roughjs@latest/bundled/rough.esm.js
+ *   // After rendering KaTeX:
+ *   await initDependencies();
+ *   await applyHandwritingGeometry();
  * 
  * PROCESSORS (11 total):
  * ──────────────────────────────────────────────────────────────────────────────
@@ -40,83 +35,42 @@
  *   9. processBoxed()           - \boxed, \fbox
  *  10. processTableLines()      - \hline, | in arrays/matrices
  *  11. processVectorArrows()    - \vec{} small arrows
- * 
- * DEBUG:
- * ──────────────────────────────────────────────────────────────────────────────
- *   See DEBUG_UTILITIES section at bottom for debugging broken elements.
- *   Use: debugElement(containerElement) to analyze KaTeX structure.
  */
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║                                                                              ║
 // ║                    ★★★ MASTER SETTINGS - TWEAK HERE! ★★★                   ║
 // ║                                                                              ║
-// ║  Adjust these numbers to change the hand-drawn appearance                   ║
-// ║  Each setting has a recommended range in comments                           ║
+// ║  All settings are exported so you can modify them before calling            ║
+// ║  applyHandwritingGeometry()                                                  ║
 // ║                                                                              ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
-const MASTER_SETTINGS = {
+export const MASTER_SETTINGS = {
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // PERFECT-FREEHAND SETTINGS (stroke appearance)
+    // GLOBAL PERFECT-FREEHAND SETTINGS
+    // These are the defaults used by all processors unless overridden
     // ═══════════════════════════════════════════════════════════════════════════
     
-    strokeSize: 3.0,          // Base stroke thickness [1.5 - 5.0] bigger = thicker lines
-    thinning: 0.25,           // Pressure variation [-0.1 - 0.5] higher = more thin/thick variation
-    smoothing: 0.4,           // Curve smoothing [0 - 1] lower = more sketchy
-    streamline: 0.4,          // Path simplification [0 - 1] lower = more wobbly
-    
-    // ═══════════════════════════════════════════════════════════════════════════
-    // ROUGH.JS SETTINGS (hand-drawn feel)
-    // ═══════════════════════════════════════════════════════════════════════════
-    
-    roughness: 2.0,           // Line roughness [0.5 - 3.5] higher = more wobbly/sketchy
-    bowing: 1.4,              // Line bowing [0.3 - 3.0] higher = more curved lines
-    
-    // ═══════════════════════════════════════════════════════════════════════════
-    // RANDOMIZATION (natural variation)
-    // ═══════════════════════════════════════════════════════════════════════════
-    
-    sizeVariance: 1.0,        // Stroke size randomness [0 - 2.0]
-    thinningVariance: 0.2,    // Thinning randomness [0 - 0.3]
-    roughnessVariance: 0.6,   // Roughness randomness [0 - 1.0]
-    bowingVariance: 0.5,      // Bowing randomness [0 - 1.0]
-    
-    // ═══════════════════════════════════════════════════════════════════════════
-    // SQUARE ROOT SPECIFIC (extra rough for √ symbols)
-    // ═══════════════════════════════════════════════════════════════════════════
-    
-    sqrt: {
-        roughness: 3.5,       // Extra rough for square roots [2.0 - 4.0]
-        bowing: 3.0,          // Extra bowing [1.5 - 4.0]
-        thinning: 0.4,        // More pressure variation [0.2 - 0.5]
-        smoothing: 0.2,       // Less smooth = more rough [0.1 - 0.4]
-        streamline: 0.2,      // Less streamline = more wobbly [0.1 - 0.4]
-        wobblePercent: 0.06,  // Position wobble as % of height [0.02 - 0.10]
+    global: {
+        strokeSize: 3.0,          // Base stroke thickness [1.0 - 6.0]
+        thinning: 0.25,           // Pressure variation [-0.1 - 0.5]
+        smoothing: 0.4,           // Curve smoothing [0 - 1] lower = sketchy
+        streamline: 0.4,          // Path simplification [0 - 1] lower = wobbly
+        roughness: 2.0,           // Line roughness [0.5 - 4.0]
+        bowing: 1.4,              // Line bowing [0.3 - 3.0]
     },
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // OVERBRACE / UNDERBRACE SPECIFIC
+    // RANDOMIZATION (natural variation between elements)
     // ═══════════════════════════════════════════════════════════════════════════
     
-    brace: {
-        roughness: 2.5,       // Brace roughness [1.5 - 3.5]
-        bowing: 1.8,          // Brace bowing [1.0 - 2.5]
-        sizeMultiplier: 5,    // Divide thin dimension by this [3 - 8] smaller = thicker
-        tipPercent: 0.1,      // Tip size as % of length [0.05 - 0.15]
-        maxTip: 10,           // Maximum tip size in pixels [5 - 20]
-    },
-    
-    // ═══════════════════════════════════════════════════════════════════════════
-    // DELIMITER SPECIFIC (parentheses, brackets)
-    // ═══════════════════════════════════════════════════════════════════════════
-    
-    delimiter: {
-        bowPercent: 0.75,     // How much the arc curves [0.5 - 0.9]
-        wobble: 25,           // Random X wobble in viewBox units [10 - 40]
-        sizeMultiplier: 55,   // Divide height by this for stroke [40 - 70]
-        minSize: 18,          // Minimum stroke size [12 - 25]
+    variance: {
+        size: 1.0,                // Stroke size randomness [0 - 2.0]
+        thinning: 0.2,            // Thinning randomness [0 - 0.3]
+        roughness: 0.6,           // Roughness randomness [0 - 1.0]
+        bowing: 0.5,              // Bowing randomness [0 - 1.0]
     },
     
     // ═══════════════════════════════════════════════════════════════════════════
@@ -124,11 +78,138 @@ const MASTER_SETTINGS = {
     // ═══════════════════════════════════════════════════════════════════════════
     
     line: {
-        waveAmount: 0.015,    // Sine wave amplitude [0.005 - 0.025]
-        wobbleAmount: 0.02,   // Random wobble amplitude [0.01 - 0.03]
-        waveFrequency: 3,     // Sine wave frequency [2 - 5]
-        minSteps: 15,         // Minimum interpolation steps [10 - 25]
-        stepDivisor: 2.5,     // Distance per step [1.5 - 4.0]
+        waveAmount: 0.015,        // Sine wave amplitude [0 - 0.04]
+        wobbleAmount: 0.02,       // Random wobble amplitude [0 - 0.05]
+        waveFrequency: 3,         // Sine wave frequency [1 - 8]
+        minSteps: 15,             // Minimum interpolation steps [5 - 30]
+        stepDivisor: 2.5,         // Distance per step [1.5 - 5.0]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 1. DELIMITERS - ( ) [ ] and stacked { } |
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    delimiter: {
+        roughness: 2.0,           // Delimiter roughness [0.5 - 4.0]
+        bowing: 1.4,              // Delimiter bowing [0.3 - 3.0]
+        bowPercent: 0.75,         // Arc curve amount [0.3 - 1.0]
+        wobble: 25,               // Random X wobble [5 - 50]
+        sizeMultiplier: 55,       // Divide height by this for stroke [30 - 80]
+        minSize: 18,              // Minimum stroke size [10 - 30]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 2. HORIZONTAL LINES - fraction bars, overlines, underlines
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    hline: {
+        roughness: 2.0,           // Line roughness [0.5 - 4.0]
+        bowing: 1.4,              // Line bowing [0.3 - 3.0]
+        strokeSize: 3.0,          // Stroke thickness [1.0 - 5.0]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 3. SQUARE ROOTS - √ symbols
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    sqrt: {
+        roughness: 3.5,           // Extra rough for √ [2.0 - 5.0]
+        bowing: 3.0,              // Extra bowing [1.5 - 5.0]
+        thinning: 0.4,            // More pressure variation [0.2 - 0.6]
+        smoothing: 0.2,           // Less smooth = rough [0.1 - 0.5]
+        streamline: 0.2,          // Less streamline = wobbly [0.1 - 0.5]
+        wobblePercent: 0.06,      // Position wobble % [0.02 - 0.12]
+        sizeMultiplier: 14,       // Divide height by this [8 - 20]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 4. EXTENSIBLE ARROWS - \xrightarrow, \xleftarrow, \overrightarrow
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    xarrow: {
+        roughness: 2.0,           // Arrow roughness [0.5 - 4.0]
+        bowing: 1.4,              // Arrow bowing [0.3 - 3.0]
+        strokeSize: 2.5,          // Stroke thickness [1.0 - 4.0]
+        arrowSizePercent: 0.45,   // Arrowhead size as % of height [0.2 - 0.6]
+        maxArrowSize: 7,          // Maximum arrowhead size px [4 - 12]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 5. STRETCHY BRACES - \overbrace, \underbrace
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    brace: {
+        roughness: 2.5,           // Brace roughness [1.0 - 4.0]
+        bowing: 1.8,              // Brace bowing [0.5 - 3.0]
+        sizeMultiplier: 5,        // Divide thin dimension by this [3 - 10]
+        tipPercent: 0.1,          // Tip size as % of length [0.05 - 0.2]
+        maxTip: 10,               // Maximum tip size px [5 - 20]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 6. WIDE ACCENTS - \widehat, \widetilde
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    wideAccent: {
+        roughness: 2.0,           // Accent roughness [0.5 - 4.0]
+        bowing: 1.5,              // Accent bowing [0.3 - 3.0]
+        strokeSize: 2.5,          // Stroke thickness [1.0 - 4.0]
+        hatPeakPercent: 0.5,      // Hat peak position [0.3 - 0.7]
+        tildeWaves: 2,            // Number of tilde waves [1 - 4]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 7. CANCEL - \cancel, \bcancel, \xcancel
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    cancel: {
+        roughness: 2.5,           // Cancel line roughness [1.0 - 4.0]
+        bowing: 1.5,              // Cancel line bowing [0.3 - 3.0]
+        strokeSize: 2.5,          // Stroke thickness [1.0 - 4.0]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 8. STRIKETHROUGH - \sout
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    strike: {
+        roughness: 2.0,           // Strike roughness [0.5 - 4.0]
+        bowing: 1.4,              // Strike bowing [0.3 - 3.0]
+        strokeSize: 2.5,          // Stroke thickness [1.0 - 4.0]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 9. BOXED - \boxed, \fbox
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    boxed: {
+        roughness: 2.0,           // Box roughness [0.5 - 4.0]
+        bowing: 1.4,              // Box bowing [0.3 - 3.0]
+        strokeSize: 2.5,          // Stroke thickness [1.0 - 4.0]
+        padding: 2,               // Padding inside box [0 - 6]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 10. TABLE LINES - \hline, | in arrays
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    table: {
+        roughness: 2.0,           // Table line roughness [0.5 - 4.0]
+        bowing: 1.4,              // Table line bowing [0.3 - 3.0]
+        strokeSize: 2.5,          // Stroke thickness [1.0 - 4.0]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 11. VECTOR ARROWS - \vec{}
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    vector: {
+        roughness: 2.4,           // Arrow roughness [0.5 - 4.0]
+        bowing: 1.4,              // Arrow bowing [0.3 - 3.0]
+        strokeSize: 2.0,          // Stroke thickness [1.0 - 4.0]
+        arrowSizePercent: 0.35,   // Arrowhead size as % of height [0.2 - 0.5]
+        maxArrowSize: 6,          // Maximum arrowhead size px [3 - 10]
+        lineYPercent: 0.55,       // Vertical position of line [0.4 - 0.7]
     },
 };
 
@@ -140,10 +221,6 @@ let getStroke = null;
 let generator = null;
 let dependenciesLoaded = false;
 
-/**
- * Initialize dependencies (perfect-freehand and rough.js)
- * Call this once before using applyHandwritingGeometry()
- */
 export async function initDependencies() {
     if (dependenciesLoaded) return { getStroke, generator };
     
@@ -157,70 +234,55 @@ export async function initDependencies() {
         generator = rough.default.generator();
         dependenciesLoaded = true;
         
-        console.log('[KaTeX-HWK] Dependencies loaded successfully');
+        console.log('[KaTeX-HWG v4.0] Dependencies loaded');
         return { getStroke, generator };
     } catch (error) {
-        console.error('[KaTeX-HWK] Failed to load dependencies:', error);
+        console.error('[KaTeX-HWG] Failed to load dependencies:', error);
         throw error;
     }
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
-// CONFIGURATION (uses MASTER_SETTINGS)
+// UTILITY FUNCTIONS
 // ════════════════════════════════════════════════════════════════════════════════
 
-/**
- * Base settings derived from MASTER_SETTINGS
- * These are applied with randomization for natural variation
- */
-const CONFIG = {
-    size: MASTER_SETTINGS.strokeSize,
-    thinning: MASTER_SETTINGS.thinning,
-    smoothing: MASTER_SETTINGS.smoothing,
-    streamline: MASTER_SETTINGS.streamline,
-    roughness: MASTER_SETTINGS.roughness,
-    bowing: MASTER_SETTINGS.bowing,
-    sizeVariance: MASTER_SETTINGS.sizeVariance,
-    thinningVariance: MASTER_SETTINGS.thinningVariance,
-    roughnessVariance: MASTER_SETTINGS.roughnessVariance,
-    bowingVariance: MASTER_SETTINGS.bowingVariance,
-};
-
-/**
- * Generate randomized settings for each element
- * This creates natural variation in the hand-drawn appearance
- */
-function getSettings() {
+function getSettings(category = null) {
+    const g = MASTER_SETTINGS.global;
+    const v = MASTER_SETTINGS.variance;
     const rand = (base, variance) => base + (Math.random() - 0.5) * 2 * variance;
     const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
     
+    // Get category-specific settings if provided
+    const cat = category ? MASTER_SETTINGS[category] : {};
+    
     return { 
-        size: clamp(rand(CONFIG.size, CONFIG.sizeVariance), 1.5, 5.0), 
-        thinning: clamp(rand(CONFIG.thinning, CONFIG.thinningVariance), -0.1, 0.5), 
-        smoothing: CONFIG.smoothing, 
-        streamline: CONFIG.streamline, 
-        simulatePressure: true, 
-        roughness: clamp(rand(CONFIG.roughness, CONFIG.roughnessVariance), 1.0, 3.5), 
-        bowing: clamp(rand(CONFIG.bowing, CONFIG.bowingVariance), 0.5, 2.5), 
-        disableMultiStroke: true, 
-        seed: Math.floor(Math.random() * 10000) 
+        size: cat.strokeSize || clamp(rand(g.strokeSize, v.size), 1.0, 6.0),
+        thinning: cat.thinning || clamp(rand(g.thinning, v.thinning), -0.1, 0.6),
+        smoothing: cat.smoothing || g.smoothing,
+        streamline: cat.streamline || g.streamline,
+        simulatePressure: true,
+        roughness: cat.roughness || clamp(rand(g.roughness, v.roughness), 0.5, 4.0),
+        bowing: cat.bowing || clamp(rand(g.bowing, v.bowing), 0.3, 3.0),
+        disableMultiStroke: true,
+        seed: Math.floor(Math.random() * 10000),
     };
 }
 
-// ════════════════════════════════════════════════════════════════════════════════
-// DRAWING UTILITIES
-// ════════════════════════════════════════════════════════════════════════════════
+function getRoughOpts(category) {
+    const cat = MASTER_SETTINGS[category] || MASTER_SETTINGS.global;
+    return {
+        roughness: cat.roughness || MASTER_SETTINGS.global.roughness,
+        bowing: cat.bowing || MASTER_SETTINGS.global.bowing,
+        seed: Math.random() * 10000,
+    };
+}
 
-/**
- * Interpolate points along a line for hand-drawn effect
- * Includes wave pattern and random wobble for sketchy look
- */
 function interpolateLine(p0, p1) {
+    const L = MASTER_SETTINGS.line;
     const points = [];
     const distance = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
-    const steps = Math.max(MASTER_SETTINGS.line.minSteps, Math.ceil(distance / MASTER_SETTINGS.line.stepDivisor));
+    const steps = Math.max(L.minSteps, Math.ceil(distance / L.stepDivisor));
     
-    // Calculate perpendicular direction for wobble
     const dx = p1[0] - p0[0];
     const dy = p1[1] - p0[1];
     const len = Math.hypot(dx, dy) || 1;
@@ -229,12 +291,11 @@ function interpolateLine(p0, p1) {
     
     for (let i = 0; i <= steps; i++) { 
         const t = i / steps;
-        let x = p0[0] + (p1[0] - p0[0]) * t;
-        let y = p0[1] + (p1[1] - p0[1]) * t;
+        let x = p0[0] + dx * t;
+        let y = p0[1] + dy * t;
         
-        // Add WAVY wobble perpendicular to line direction (uses MASTER_SETTINGS)
-        const waveAmount = Math.sin(t * Math.PI * MASTER_SETTINGS.line.waveFrequency) * distance * MASTER_SETTINGS.line.waveAmount;
-        const randomWobble = (Math.random() - 0.5) * distance * MASTER_SETTINGS.line.wobbleAmount;
+        const waveAmount = Math.sin(t * Math.PI * L.waveFrequency) * distance * L.waveAmount;
+        const randomWobble = (Math.random() - 0.5) * distance * L.wobbleAmount;
         x += perpX * (waveAmount + randomWobble);
         y += perpY * (waveAmount + randomWobble);
         
@@ -244,9 +305,6 @@ function interpolateLine(p0, p1) {
     return points;
 }
 
-/**
- * Interpolate cubic bezier curve
- */
 function interpolateBezier(p0, p1, p2, p3) {
     const points = [];
     const steps = 18;
@@ -262,10 +320,7 @@ function interpolateBezier(p0, p1, p2, p3) {
     return points;
 }
 
-/**
- * Draw a Rough.js shape into an SVG using perfect-freehand
- */
-function drawRoughShape(svg, drawable, color, settings, scale = 1) {
+function drawRoughShape(svg, drawable, color, settings) {
     if (!drawable || !drawable.sets) return;
     
     drawable.sets.forEach(set => {
@@ -273,89 +328,81 @@ function drawRoughShape(svg, drawable, color, settings, scale = 1) {
         let currentPos = [0, 0];
         
         set.ops.forEach(op => {
-            if (op.op === 'move') { 
-                currentPos = [op.data[0] * scale, op.data[1] * scale]; 
-                points.push([...currentPos, 0.5]); 
-            } else if (op.op === 'lineTo') { 
-                const nextPos = [op.data[0] * scale, op.data[1] * scale]; 
-                points = points.concat(interpolateLine(currentPos, nextPos)); 
-                currentPos = nextPos; 
-            } else if (op.op === 'bcurveTo') { 
-                const cp1 = [op.data[0] * scale, op.data[1] * scale];
-                const cp2 = [op.data[2] * scale, op.data[3] * scale];
-                const end = [op.data[4] * scale, op.data[5] * scale];
-                points = points.concat(interpolateBezier(currentPos, cp1, cp2, end)); 
-                currentPos = end; 
+            if (op.op === 'move') {
+                currentPos = [op.data[0], op.data[1]];
+                points.push([...currentPos, 0.5]);
+            } else if (op.op === 'lineTo') {
+                const nextPos = [op.data[0], op.data[1]];
+                points = points.concat(interpolateLine(currentPos, nextPos));
+                currentPos = nextPos;
+            } else if (op.op === 'bcurveTo') {
+                const cp1 = [op.data[0], op.data[1]];
+                const cp2 = [op.data[2], op.data[3]];
+                const endPos = [op.data[4], op.data[5]];
+                points = points.concat(interpolateBezier(currentPos, cp1, cp2, endPos));
+                currentPos = endPos;
             }
         });
         
         if (points.length > 1) {
-            const strokePoints = getStroke(points, { 
-                size: settings.size * scale, 
-                thinning: settings.thinning, 
-                smoothing: settings.smoothing, 
-                streamline: settings.streamline, 
-                simulatePressure: settings.simulatePressure, 
-                last: true 
+            const g = MASTER_SETTINGS.global;
+            const stroke = getStroke(points, {
+                size: settings.size || g.strokeSize,
+                thinning: settings.thinning || g.thinning,
+                smoothing: settings.smoothing || g.smoothing,
+                streamline: settings.streamline || g.streamline,
+                simulatePressure: true,
+                last: true,
             });
             
-            if (strokePoints && strokePoints.length) { 
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); 
-                path.setAttribute('d', 'M' + strokePoints.map(p => `${p[0]},${p[1]}`).join('L') + 'Z'); 
-                path.setAttribute('fill', color); 
-                path.classList.add('hwk-path'); 
-                svg.appendChild(path); 
+            if (stroke.length > 0) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const d = 'M' + stroke.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join('L') + 'Z';
+                path.setAttribute('d', d);
+                path.setAttribute('fill', color);
+                path.classList.add('hwk-path');
+                svg.appendChild(path);
             }
         }
     });
 }
 
-/**
- * Draw raw points into an SVG using perfect-freehand
- */
 function drawPoints(svg, points, color, settings) {
-    if (!points || points.length < 2) return;
+    if (points.length < 2) return;
     
-    const strokePoints = getStroke(points, { 
-        size: settings.size, 
-        thinning: settings.thinning, 
-        smoothing: settings.smoothing, 
-        streamline: settings.streamline, 
-        simulatePressure: settings.simulatePressure, 
-        last: true 
+    const g = MASTER_SETTINGS.global;
+    const stroke = getStroke(points, {
+        size: settings.size || g.strokeSize,
+        thinning: settings.thinning || g.thinning,
+        smoothing: settings.smoothing || g.smoothing,
+        streamline: settings.streamline || g.streamline,
+        simulatePressure: true,
+        last: true,
     });
     
-    if (strokePoints && strokePoints.length) { 
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); 
-        path.setAttribute('d', 'M' + strokePoints.map(p => `${p[0]},${p[1]}`).join('L') + 'Z'); 
-        path.setAttribute('fill', color); 
-        path.classList.add('hwk-path'); 
-        svg.appendChild(path); 
+    if (stroke.length > 0) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const d = 'M' + stroke.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join('L') + 'Z';
+        path.setAttribute('d', d);
+        path.setAttribute('fill', color);
+        path.classList.add('hwk-path');
+        svg.appendChild(path);
     }
 }
 
-/**
- * Create an overlay SVG element
- */
 function createOverlaySVG(width, height) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', width); 
+    svg.setAttribute('width', width);
     svg.setAttribute('height', height);
     svg.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:10;';
     svg.classList.add('hwk-overlay');
     return svg;
 }
 
-/**
- * Clear all children from an SVG
- */
-function clearSVG(svg) { 
-    while (svg.firstChild) svg.removeChild(svg.firstChild); 
+function clearSVG(svg) {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
 }
 
-/**
- * Get computed color from element or ancestors
- */
 function getColor(element) {
     let el = element;
     while (el) {
@@ -369,75 +416,43 @@ function getColor(element) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
-// PROCESSOR 1: BIG DELIMITERS
-// Target: .delimsizing svg (with viewBox) AND stacked braces (.delimsizing.mult)
-// Handles: ( ) [ ] { } | || ⟨ ⟩ ⌊ ⌋ ⌈ ⌉
+// PROCESSOR 1: DELIMITERS
 // ════════════════════════════════════════════════════════════════════════════════
 
-/**
- * Draw vertical curly brace { or }
- * SAME LOGIC AS OVERBRACE - JUST ROTATED 90°!
- */
 function drawVerticalCurlyBrace(svg, width, height, isOpen, color) {
-    const roughOpts = { 
-        roughness: MASTER_SETTINGS.brace.roughness, 
-        bowing: MASTER_SETTINGS.brace.bowing, 
-        seed: Math.random() * 10000 
-    };
-    const braceSettings = { 
-        size: Math.max(1.8, width / MASTER_SETTINGS.brace.sizeMultiplier) 
-    };
+    const B = MASTER_SETTINGS.brace;
+    const roughOpts = { roughness: B.roughness, bowing: B.bowing, seed: Math.random() * 10000 };
+    const settings = { size: Math.max(1.8, width / B.sizeMultiplier) };
     
     const midY = height / 2;
-    const tipW = Math.min(height * MASTER_SETTINGS.brace.tipPercent, MASTER_SETTINGS.brace.maxTip);
+    const tipW = Math.min(height * B.tipPercent, B.maxTip);
     
     if (isOpen) {
-        // Opening brace { - tip points LEFT
-        // Same as UNDERBRACE rotated 90° counterclockwise
-        const rightX = width - 3;
-        const leftX = 2;
-        
-        // Line 1: Top vertical (like overbrace left horizontal)
+        const rightX = width - 3, leftX = 2;
         roughOpts.seed = Math.random() * 10000;
-        drawRoughShape(svg, generator.line(rightX, 0, rightX, midY - tipW, roughOpts), color, braceSettings);
-        
-        // Line 2: Diagonal to tip (like overbrace diagonal down)
+        drawRoughShape(svg, generator.line(rightX, 0, rightX, midY - tipW, roughOpts), color, settings);
         roughOpts.seed = Math.random() * 10000;
-        drawRoughShape(svg, generator.line(rightX, midY - tipW, leftX, midY, roughOpts), color, braceSettings);
-        
-        // Line 3: Diagonal from tip (like overbrace diagonal up)
+        drawRoughShape(svg, generator.line(rightX, midY - tipW, leftX, midY, roughOpts), color, settings);
         roughOpts.seed = Math.random() * 10000;
-        drawRoughShape(svg, generator.line(leftX, midY, rightX, midY + tipW, roughOpts), color, braceSettings);
-        
-        // Line 4: Bottom vertical (like overbrace right horizontal)
+        drawRoughShape(svg, generator.line(leftX, midY, rightX, midY + tipW, roughOpts), color, settings);
         roughOpts.seed = Math.random() * 10000;
-        drawRoughShape(svg, generator.line(rightX, midY + tipW, rightX, height, roughOpts), color, braceSettings);
-        
+        drawRoughShape(svg, generator.line(rightX, midY + tipW, rightX, height, roughOpts), color, settings);
     } else {
-        // Closing brace } - tip points RIGHT
-        const rightX = width - 2;
-        const leftX = 3;
-        
-        // Line 1: Top vertical
+        const rightX = width - 2, leftX = 3;
         roughOpts.seed = Math.random() * 10000;
-        drawRoughShape(svg, generator.line(leftX, 0, leftX, midY - tipW, roughOpts), color, braceSettings);
-        
-        // Line 2: Diagonal to tip
+        drawRoughShape(svg, generator.line(leftX, 0, leftX, midY - tipW, roughOpts), color, settings);
         roughOpts.seed = Math.random() * 10000;
-        drawRoughShape(svg, generator.line(leftX, midY - tipW, rightX, midY, roughOpts), color, braceSettings);
-        
-        // Line 3: Diagonal from tip
+        drawRoughShape(svg, generator.line(leftX, midY - tipW, rightX, midY, roughOpts), color, settings);
         roughOpts.seed = Math.random() * 10000;
-        drawRoughShape(svg, generator.line(rightX, midY, leftX, midY + tipW, roughOpts), color, braceSettings);
-        
-        // Line 4: Bottom vertical
+        drawRoughShape(svg, generator.line(rightX, midY, leftX, midY + tipW, roughOpts), color, settings);
         roughOpts.seed = Math.random() * 10000;
-        drawRoughShape(svg, generator.line(leftX, midY + tipW, leftX, height, roughOpts), color, braceSettings);
+        drawRoughShape(svg, generator.line(leftX, midY + tipW, leftX, height, roughOpts), color, settings);
     }
 }
 
 function processDelimiters() {
     let count = 0;
+    const D = MASTER_SETTINGS.delimiter;
     
     document.querySelectorAll('.delimsizing').forEach(delimEl => {
         if (delimEl.dataset.hwk) return;
@@ -448,64 +463,38 @@ function processDelimiters() {
         const width = rect.width;
         const height = rect.height;
         
-        // Check for stacked delimiter (mult class)
         const hasMultClass = delimEl.classList.contains('mult');
         const delimInner = delimEl.querySelectorAll('.delimsizinginner');
         const svgs = delimEl.querySelectorAll('svg');
         
-        // ═══════════════════════════════════════════════════════════════
-        // TYPE 1: STACKED CURLY BRACE (mult + delimsizinginner)
-        // Has ⎧⎨⎩ characters + SVG extenders - draw unified brace
-        // ═══════════════════════════════════════════════════════════════
+        // TYPE 1: Stacked curly brace
         if (hasMultClass && delimInner.length > 0) {
             delimEl.dataset.hwk = 'stacked-brace';
-            
-            // Hide the original parts
             delimInner.forEach(el => el.style.visibility = 'hidden');
             svgs.forEach(svg => svg.style.visibility = 'hidden');
-            
-            // Create overlay and draw curly brace
             delimEl.style.position = 'relative';
             const overlay = createOverlaySVG(width, height);
             drawVerticalCurlyBrace(overlay, width, height, isOpen, color);
             delimEl.appendChild(overlay);
             count++;
-            return; // Skip to next element
+            return;
         }
         
-        // ═══════════════════════════════════════════════════════════════
-        // TYPE 2: STACKED VERTICAL BAR (mult + SVG but no delimsizinginner)
-        // This is vmatrix | | - just draw a straight vertical line!
-        // ═══════════════════════════════════════════════════════════════
+        // TYPE 2: Stacked vertical bar (vmatrix)
         if (hasMultClass && svgs.length > 0 && delimInner.length === 0) {
             delimEl.dataset.hwk = 'stacked-vbar';
-            
-            // Hide the original SVG
             svgs.forEach(svg => svg.style.visibility = 'hidden');
-            
-            // Create overlay and draw simple vertical line
             delimEl.style.position = 'relative';
             const overlay = createOverlaySVG(width, height);
-            
-            const roughOpts = {
-                roughness: MASTER_SETTINGS.roughness,
-                bowing: MASTER_SETTINGS.bowing,
-                seed: Math.random() * 10000,
-            };
+            const roughOpts = getRoughOpts('delimiter');
             const settings = { size: Math.max(1.8, width / 4) };
-            
-            // Draw vertical line in the center
-            const midX = width / 2;
-            drawRoughShape(overlay, generator.line(midX, 2, midX, height - 2, roughOpts), color, settings);
-            
+            drawRoughShape(overlay, generator.line(width / 2, 2, width / 2, height - 2, roughOpts), color, settings);
             delimEl.appendChild(overlay);
             count++;
             return;
         }
         
-        // ═══════════════════════════════════════════════════════════════
-        // TYPE 3: SVG-BASED DELIMITER (big parenthesis, bracket with viewBox)
-        // ═══════════════════════════════════════════════════════════════
+        // TYPE 3: SVG-based delimiter
         const svg = delimEl.querySelector('svg');
         if (!svg || svg.dataset.hwk) return;
         
@@ -516,36 +505,23 @@ function processDelimiters() {
         delimEl.dataset.hwk = 'svg-delim';
         
         const [, , vbWidth, vbHeight] = viewBox.split(' ').map(Number);
-        
-        const settings = getSettings();
-        settings.size = Math.max(
-            MASTER_SETTINGS.delimiter.minSize, 
-            Math.min(55, vbHeight / MASTER_SETTINGS.delimiter.sizeMultiplier)
-        );
+        const settings = getSettings('delimiter');
+        settings.size = Math.max(D.minSize, Math.min(55, vbHeight / D.sizeMultiplier));
         
         clearSVG(svg);
         
-        // Generate smooth parenthesis arc
         const points = [];
         const numPoints = 45;
         const paddingY = vbHeight * 0.015;
-        const bowAmount = vbWidth * MASTER_SETTINGS.delimiter.bowPercent;
+        const bowAmount = vbWidth * D.bowPercent;
         
-        for (let i = 0; i <= numPoints; i++) { 
+        for (let i = 0; i <= numPoints; i++) {
             const t = i / numPoints;
             const y = paddingY + t * (vbHeight - paddingY * 2);
             const arcAmount = Math.sin(t * Math.PI);
-            
-            let x;
-            if (isOpen) {
-                x = vbWidth - 40 - arcAmount * bowAmount;
-            } else {
-                x = 40 + arcAmount * bowAmount;
-            }
-            
-            x += (Math.random() - 0.5) * MASTER_SETTINGS.delimiter.wobble;
-            const pressure = 0.25 + arcAmount * 0.45;
-            points.push([x, y, pressure]); 
+            let x = isOpen ? (vbWidth - 40 - arcAmount * bowAmount) : (40 + arcAmount * bowAmount);
+            x += (Math.random() - 0.5) * D.wobble;
+            points.push([x, y, 0.25 + arcAmount * 0.45]);
         }
         
         drawPoints(svg, points, color, settings);
@@ -557,33 +533,32 @@ function processDelimiters() {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 2: HORIZONTAL LINES
-// Target: .frac-line, .overline-line, .underline-line, .hline
-// Handles: Fraction bars, overlines, underlines
 // ════════════════════════════════════════════════════════════════════════════════
 
 function processHorizontalLines() {
     let count = 0;
+    const H = MASTER_SETTINGS.hline;
     
-    document.querySelectorAll('.frac-line, .overline-line, .underline-line, .hline').forEach(el => {
+    document.querySelectorAll('.frac-line, .overline-line, .underline-line').forEach(el => {
         if (el.dataset.hwk) return;
         
         const rect = el.getBoundingClientRect();
-        const width = rect.width;
-        if (width < 2) return;
+        if (rect.width < 2) return;
         
         el.dataset.hwk = 'hline';
         
         const color = getColor(el);
-        const height = 20;
-        const settings = getSettings();
+        const svgHeight = 20;
+        const settings = { size: H.strokeSize, roughness: H.roughness, bowing: H.bowing };
+        const roughOpts = { roughness: H.roughness, bowing: H.bowing, seed: Math.random() * 10000 };
         
-        const svg = createOverlaySVG(width, height);
-        svg.style.top = '50%'; 
+        const svg = createOverlaySVG(rect.width, svgHeight);
+        svg.style.top = '50%';
         svg.style.transform = 'translateY(-50%)';
         
-        drawRoughShape(svg, generator.line(0, height/2, width, height/2, settings), color, settings);
+        drawRoughShape(svg, generator.line(0, svgHeight / 2, rect.width, svgHeight / 2, roughOpts), color, settings);
         
-        el.style.position = 'relative'; 
+        el.style.position = 'relative';
         el.style.borderBottomColor = 'transparent';
         el.appendChild(svg);
         count++;
@@ -594,14 +569,12 @@ function processHorizontalLines() {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 3: SQUARE ROOTS
-// Target: .sqrt .hide-tail svg (with viewBox)
-// Handles: √ symbols including nested roots
 // ════════════════════════════════════════════════════════════════════════════════
 
 function processSquareRoots() {
     let count = 0;
+    const S = MASTER_SETTINGS.sqrt;
     
-    // Process ALL sqrt SVGs directly - each .hide-tail svg is one sqrt symbol
     document.querySelectorAll('.sqrt .hide-tail svg').forEach(svg => {
         if (svg.dataset.hwk) return;
         
@@ -615,51 +588,28 @@ function processSquareRoots() {
         
         clearSVG(svg);
         
-        const settings = getSettings();
-        settings.size = Math.max(22, Math.min(85, vbHeight / 14));
-        
-        // Use MASTER_SETTINGS for sqrt - very sketchy and wavy!
-        const roughOpts = {
-            roughness: MASTER_SETTINGS.sqrt.roughness,
-            bowing: MASTER_SETTINGS.sqrt.bowing,
-            seed: Math.floor(Math.random() * 10000),
-            disableMultiStroke: false,
-            strokeWidth: 1,
+        const settings = {
+            size: Math.max(22, vbHeight / S.sizeMultiplier),
+            thinning: S.thinning,
+            smoothing: S.smoothing,
+            streamline: S.streamline,
         };
         
-        // Perfect-freehand settings for sqrt - more variation
-        const sqrtSettings = {
-            ...settings,
-            thinning: MASTER_SETTINGS.sqrt.thinning,
-            smoothing: MASTER_SETTINGS.sqrt.smoothing,
-            streamline: MASTER_SETTINGS.sqrt.streamline,
-        };
-        
-        // Square root shape with wobble for wavy look
-        const wobble = () => (Math.random() - 0.5) * vbHeight * MASTER_SETTINGS.sqrt.wobblePercent;
+        const roughOpts = { roughness: S.roughness, bowing: S.bowing, seed: Math.random() * 10000 };
+        const wobble = () => (Math.random() - 0.5) * vbHeight * S.wobblePercent;
         const surdWidth = Math.min(vbHeight * 0.85, 850);
         const topY = vbHeight * 0.04 + wobble();
         const bottomY = vbHeight * 0.96 + wobble();
         const midY = vbHeight * 0.42 + wobble();
         
-        // Draw sqrt shape: small hook, down stroke, up stroke, vinculum (top bar)
-        // Each segment gets fresh seed for natural variation
-        
-        // Hook
-        roughOpts.seed = Math.floor(Math.random() * 10000);
-        drawRoughShape(svg, generator.line(0, midY + vbHeight * 0.06, surdWidth * 0.32 + wobble(), midY, roughOpts), color, sqrtSettings);
-        
-        // Down stroke
-        roughOpts.seed = Math.floor(Math.random() * 10000);
-        drawRoughShape(svg, generator.line(surdWidth * 0.32, midY, surdWidth * 0.52 + wobble(), bottomY, roughOpts), color, sqrtSettings);
-        
-        // Up stroke (the main diagonal)
-        roughOpts.seed = Math.floor(Math.random() * 10000);
-        drawRoughShape(svg, generator.line(surdWidth * 0.52, bottomY, surdWidth + wobble(), topY, roughOpts), color, sqrtSettings);
-        
-        // Vinculum (top bar)
-        roughOpts.seed = Math.floor(Math.random() * 10000);
-        drawRoughShape(svg, generator.line(surdWidth - 25, topY, vbWidth, topY + wobble() * 0.5, roughOpts), color, sqrtSettings);
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(0, midY + vbHeight * 0.06, surdWidth * 0.32 + wobble(), midY, roughOpts), color, settings);
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(surdWidth * 0.32, midY, surdWidth * 0.52 + wobble(), bottomY, roughOpts), color, settings);
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(surdWidth * 0.52, bottomY, surdWidth + wobble(), topY, roughOpts), color, settings);
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(surdWidth - 25, topY, vbWidth, topY + wobble() * 0.5, roughOpts), color, settings);
         
         count++;
     });
@@ -669,12 +619,11 @@ function processSquareRoots() {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 4: EXTENSIBLE ARROWS
-// Target: .x-arrow .hide-tail svg
-// Handles: \xrightarrow, \xleftarrow (with optional labels above/below)
 // ════════════════════════════════════════════════════════════════════════════════
 
 function processExtensibleArrows() {
     let count = 0;
+    const A = MASTER_SETTINGS.xarrow;
     
     document.querySelectorAll('.x-arrow').forEach(arrowEl => {
         const svg = arrowEl.querySelector('.hide-tail svg');
@@ -692,25 +641,25 @@ function processExtensibleArrows() {
         clearSVG(svg);
         svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
         
-        const settings = getSettings();
-        settings.size = Math.max(1.8, Math.min(3.5, height / 7));
+        const settings = { size: A.strokeSize };
+        const roughOpts = { roughness: A.roughness, bowing: A.bowing, seed: Math.random() * 10000 };
         
         const midY = height / 2;
-        const arrowSize = Math.min(height * 0.45, 7);
-        
-        // Detect direction from preserveAspectRatio
+        const arrowSize = Math.min(height * A.arrowSizePercent, A.maxArrowSize);
         const isLeftArrow = svg.getAttribute('preserveAspectRatio')?.includes('xMin');
         
         if (isLeftArrow) {
-            // Left arrow ←
-            drawRoughShape(svg, generator.line(arrowSize + 3, midY, width - 2, midY, settings), color, settings);
-            drawRoughShape(svg, generator.line(2, midY, arrowSize + 3, midY - arrowSize, settings), color, settings);
-            drawRoughShape(svg, generator.line(2, midY, arrowSize + 3, midY + arrowSize, settings), color, settings);
+            drawRoughShape(svg, generator.line(arrowSize + 3, midY, width - 2, midY, roughOpts), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(2, midY, arrowSize + 3, midY - arrowSize, roughOpts), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(2, midY, arrowSize + 3, midY + arrowSize, roughOpts), color, settings);
         } else {
-            // Right arrow →
-            drawRoughShape(svg, generator.line(2, midY, width - arrowSize - 3, midY, settings), color, settings);
-            drawRoughShape(svg, generator.line(width - 2, midY, width - arrowSize - 3, midY - arrowSize, settings), color, settings);
-            drawRoughShape(svg, generator.line(width - 2, midY, width - arrowSize - 3, midY + arrowSize, settings), color, settings);
+            drawRoughShape(svg, generator.line(2, midY, width - arrowSize - 3, midY, roughOpts), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(width - 2, midY, width - arrowSize - 3, midY - arrowSize, roughOpts), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(width - 2, midY, width - arrowSize - 3, midY + arrowSize, roughOpts), color, settings);
         }
         
         count++;
@@ -721,81 +670,58 @@ function processExtensibleArrows() {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 5: STRETCHY BRACES
-// Target: .stretchy (inside .mover or .munder, not .delimsizing or .sout)
-// Handles: \overbrace, \underbrace
 // ════════════════════════════════════════════════════════════════════════════════
 
 function processStretchyBraces() {
     let count = 0;
+    const B = MASTER_SETTINGS.brace;
     
-    document.querySelectorAll('.stretchy').forEach(stretchyEl => {
-        // Skip delimiters and strikethrough
-        if (stretchyEl.closest('.delimsizing')) return;
-        if (stretchyEl.classList.contains('sout')) return;
-        if (stretchyEl.dataset.hwk) return;
+    document.querySelectorAll('.stretchy').forEach(el => {
+        if (el.closest('.delimsizing') || el.classList.contains('sout') || el.dataset.hwk) return;
         
-        // Must be inside .mover or .munder
-        const inMover = stretchyEl.closest('.mover');
-        const inMunder = stretchyEl.closest('.munder');
+        const inMover = el.closest('.mover');
+        const inMunder = el.closest('.munder');
         if (!inMover && !inMunder) return;
         
-        stretchyEl.dataset.hwk = 'stretchy-brace';
+        el.dataset.hwk = 'stretchy';
         
-        const rect = stretchyEl.getBoundingClientRect();
-        const width = rect.width;
-        const height = rect.height;
-        if (width < 10 || height < 3) return;
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 10) return;
         
-        const color = getColor(stretchyEl);
+        el.querySelectorAll('svg').forEach(s => s.style.opacity = '0');
         
-        // Use MASTER_SETTINGS for brace
-        const roughOpts = {
-            roughness: MASTER_SETTINGS.brace.roughness,
-            bowing: MASTER_SETTINGS.brace.bowing,
-            seed: Math.random() * 10000,
-        };
-        const settings = {
-            size: Math.max(1.8, height / MASTER_SETTINGS.brace.sizeMultiplier),
-        };
+        const svg = createOverlaySVG(rect.width, rect.height);
+        const color = getColor(el);
+        const roughOpts = { roughness: B.roughness, bowing: B.bowing, seed: Math.random() * 10000 };
+        const settings = { size: Math.max(1.8, rect.height / B.sizeMultiplier) };
         
-        // Hide original SVGs
-        stretchyEl.querySelectorAll('svg').forEach(svg => svg.style.opacity = '0');
+        const midX = rect.width / 2;
+        const tipW = Math.min(rect.width * B.tipPercent, B.maxTip);
         
-        // Create overlay
-        const svg = createOverlaySVG(width, height);
-        
-        const isUnderbrace = inMunder !== null;
-        const midX = width / 2;
-        const tipWidth = Math.min(width * MASTER_SETTINGS.brace.tipPercent, MASTER_SETTINGS.brace.maxTip);
-        
-        if (isUnderbrace) {
-            // Underbrace ⏟ - tip points DOWN
-            const topY = 3;
-            const bottomY = height - 2;
+        if (inMunder) {
+            const topY = 3, botY = rect.height - 2;
             roughOpts.seed = Math.random() * 10000;
-            drawRoughShape(svg, generator.line(0, topY, midX - tipWidth, topY, roughOpts), color, settings);
+            drawRoughShape(svg, generator.line(0, topY, midX - tipW, topY, roughOpts), color, settings);
             roughOpts.seed = Math.random() * 10000;
-            drawRoughShape(svg, generator.line(midX - tipWidth, topY, midX, bottomY, roughOpts), color, settings);
+            drawRoughShape(svg, generator.line(midX - tipW, topY, midX, botY, roughOpts), color, settings);
             roughOpts.seed = Math.random() * 10000;
-            drawRoughShape(svg, generator.line(midX, bottomY, midX + tipWidth, topY, roughOpts), color, settings);
+            drawRoughShape(svg, generator.line(midX, botY, midX + tipW, topY, roughOpts), color, settings);
             roughOpts.seed = Math.random() * 10000;
-            drawRoughShape(svg, generator.line(midX + tipWidth, topY, width, topY, roughOpts), color, settings);
+            drawRoughShape(svg, generator.line(midX + tipW, topY, rect.width, topY, roughOpts), color, settings);
         } else {
-            // Overbrace ⏞ - tip points UP
-            const topY = 2;
-            const bottomY = height - 3;
+            const topY = 2, botY = rect.height - 3;
             roughOpts.seed = Math.random() * 10000;
-            drawRoughShape(svg, generator.line(0, bottomY, midX - tipWidth, bottomY, roughOpts), color, settings);
+            drawRoughShape(svg, generator.line(0, botY, midX - tipW, botY, roughOpts), color, settings);
             roughOpts.seed = Math.random() * 10000;
-            drawRoughShape(svg, generator.line(midX - tipWidth, bottomY, midX, topY, roughOpts), color, settings);
+            drawRoughShape(svg, generator.line(midX - tipW, botY, midX, topY, roughOpts), color, settings);
             roughOpts.seed = Math.random() * 10000;
-            drawRoughShape(svg, generator.line(midX, topY, midX + tipWidth, bottomY, roughOpts), color, settings);
+            drawRoughShape(svg, generator.line(midX, topY, midX + tipW, botY, roughOpts), color, settings);
             roughOpts.seed = Math.random() * 10000;
-            drawRoughShape(svg, generator.line(midX + tipWidth, bottomY, width, bottomY, roughOpts), color, settings);
+            drawRoughShape(svg, generator.line(midX + tipW, botY, rect.width, botY, roughOpts), color, settings);
         }
         
-        stretchyEl.style.position = 'relative';
-        stretchyEl.appendChild(svg);
+        el.style.position = 'relative';
+        el.appendChild(svg);
         count++;
     });
     
@@ -804,19 +730,23 @@ function processStretchyBraces() {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 6: WIDE ACCENTS
-// Target: .accent svg (without <line> elements)
-// Handles: \widehat, \widetilde
 // ════════════════════════════════════════════════════════════════════════════════
 
 function processWideAccents() {
     let count = 0;
+    const W = MASTER_SETTINGS.wideAccent;
     
     document.querySelectorAll('.accent').forEach(accentEl => {
         const svg = accentEl.querySelector('svg');
         if (!svg || svg.dataset.hwk) return;
+        if (svg.querySelector('line')) return; // Skip cancel
+        if (svg.closest('.overlay')) return; // Skip \vec arrows
         
-        // Skip if has line elements (those are cancel)
-        if (svg.querySelector('line')) return;
+        const viewBox = svg.getAttribute('viewBox');
+        if (!viewBox) return;
+        
+        // Skip small vec arrows (handled by processVectorArrows)
+        if (viewBox.includes('471 714')) return;
         
         svg.dataset.hwk = 'wide-accent';
         
@@ -830,30 +760,17 @@ function processWideAccents() {
         clearSVG(svg);
         svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
         
-        const settings = getSettings();
-        settings.size = Math.max(1.4, Math.min(2.8, height / 4));
+        const settings = { size: W.strokeSize };
+        const roughOpts = { roughness: W.roughness, bowing: W.bowing, seed: Math.random() * 10000 };
         
-        // Detect hat vs tilde by aspect ratio
-        const isWidehat = width > height * 3.5;
+        // Draw widehat (^) shape
+        const peakX = width * W.hatPeakPercent;
+        const botY = height - 2;
+        const topY = 2;
         
-        if (isWidehat) {
-            // Draw ^ hat shape
-            const midX = width / 2;
-            drawRoughShape(svg, generator.line(0, height - 1, midX, 1, settings), color, settings);
-            drawRoughShape(svg, generator.line(midX, 1, width, height - 1, settings), color, settings);
-        } else {
-            // Draw ~ tilde shape (sine wave)
-            const points = [];
-            const numPoints = 28;
-            for (let i = 0; i <= numPoints; i++) {
-                const t = i / numPoints;
-                const x = t * width;
-                const y = height / 2 - Math.sin(t * Math.PI * 2) * (height * 0.38);
-                const pressure = 0.35 + Math.sin(t * Math.PI) * 0.35;
-                points.push([x + (Math.random() - 0.5) * 1.5, y + (Math.random() - 0.5) * 0.8, pressure]);
-            }
-            drawPoints(svg, points, color, settings);
-        }
+        drawRoughShape(svg, generator.line(2, botY, peakX, topY, roughOpts), color, settings);
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(peakX, topY, width - 2, botY, roughOpts), color, settings);
         
         count++;
     });
@@ -863,50 +780,37 @@ function processWideAccents() {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 7: CANCEL
-// Target: .svg-align svg containing <line> elements
-// Handles: \cancel (diagonal /), \bcancel (diagonal \), \xcancel (X)
 // ════════════════════════════════════════════════════════════════════════════════
 
 function processCancel() {
     let count = 0;
+    const C = MASTER_SETTINGS.cancel;
     
-    document.querySelectorAll('.svg-align svg').forEach(svg => {
-        const lines = svg.querySelectorAll('line');
-        if (lines.length === 0) return;
+    document.querySelectorAll('.cancel-pad svg, .cancel svg').forEach(svg => {
         if (svg.dataset.hwk) return;
+        
+        const line = svg.querySelector('line');
+        if (!line) return;
         
         svg.dataset.hwk = 'cancel';
         
         const rect = svg.getBoundingClientRect();
         const width = rect.width;
         const height = rect.height;
-        if (width < 3 || height < 3) return;
         
-        const color = getColor(svg);
-        const settings = getSettings();
-        settings.size = Math.max(1.8, Math.min(3.2, Math.min(width, height) / 12));
+        const x1 = parseFloat(line.getAttribute('x1')) || 0;
+        const y1 = parseFloat(line.getAttribute('y1')) || 0;
+        const x2 = parseFloat(line.getAttribute('x2')) || width;
+        const y2 = parseFloat(line.getAttribute('y2')) || height;
         
-        // Hide original lines
-        lines.forEach(line => line.style.opacity = '0');
+        const color = line.getAttribute('stroke') || getColor(svg);
         
-        // Set viewBox to pixel dimensions
-        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        line.style.opacity = '0';
         
-        // Draw hand-drawn version of each line
-        lines.forEach(line => {
-            const x1Attr = line.getAttribute('x1');
-            const y1Attr = line.getAttribute('y1');
-            const x2Attr = line.getAttribute('x2');
-            const y2Attr = line.getAttribute('y2');
-            
-            // Convert percentage values to pixels
-            const x1 = x1Attr === '100%' ? width : (x1Attr === '0' ? 0 : parseFloat(x1Attr));
-            const y1 = y1Attr === '100%' ? height : (y1Attr === '0' ? 0 : parseFloat(y1Attr));
-            const x2 = x2Attr === '100%' ? width : (x2Attr === '0' ? 0 : parseFloat(x2Attr));
-            const y2 = y2Attr === '100%' ? height : (y2Attr === '0' ? 0 : parseFloat(y2Attr));
-            
-            drawRoughShape(svg, generator.line(x1, y1, x2, y2, settings), color, settings);
-        });
+        const settings = { size: C.strokeSize };
+        const roughOpts = { roughness: C.roughness, bowing: C.bowing, seed: Math.random() * 10000 };
+        
+        drawRoughShape(svg, generator.line(x1, y1, x2, y2, roughOpts), color, settings);
         
         count++;
     });
@@ -916,32 +820,31 @@ function processCancel() {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 8: STRIKETHROUGH
-// Target: .stretchy.sout (uses CSS border, not SVG)
-// Handles: \sout
 // ════════════════════════════════════════════════════════════════════════════════
 
 function processStrikethrough() {
     let count = 0;
+    const S = MASTER_SETTINGS.strike;
     
     document.querySelectorAll('.stretchy.sout').forEach(el => {
         if (el.dataset.hwk) return;
         
-        el.dataset.hwk = 'strikethrough';
+        el.dataset.hwk = 'sout';
         
         const rect = el.getBoundingClientRect();
-        const width = rect.width;
-        if (width < 3) return;
+        if (rect.width < 3) return;
         
         const color = getComputedStyle(el).borderBottomColor || getColor(el);
+        const svgHeight = 20;
         
-        const settings = getSettings();
-        const height = 20;
-        
-        const svg = createOverlaySVG(width, height);
+        const svg = createOverlaySVG(rect.width, svgHeight);
         svg.style.top = '50%';
         svg.style.transform = 'translateY(-50%)';
         
-        drawRoughShape(svg, generator.line(0, height / 2, width, height / 2, settings), color, settings);
+        const settings = { size: S.strokeSize };
+        const roughOpts = { roughness: S.roughness, bowing: S.bowing, seed: Math.random() * 10000 };
+        
+        drawRoughShape(svg, generator.line(0, svgHeight / 2, rect.width, svgHeight / 2, roughOpts), color, settings);
         
         el.style.position = 'relative';
         el.style.borderBottomColor = 'transparent';
@@ -954,12 +857,11 @@ function processStrikethrough() {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 9: BOXED
-// Target: .boxed, .fbox
-// Handles: \boxed, \fbox
 // ════════════════════════════════════════════════════════════════════════════════
 
 function processBoxed() {
     let count = 0;
+    const B = MASTER_SETTINGS.boxed;
     
     document.querySelectorAll('.boxed, .fbox').forEach(el => {
         if (el.dataset.hwk) return;
@@ -967,16 +869,15 @@ function processBoxed() {
         el.dataset.hwk = 'boxed';
         
         const rect = el.getBoundingClientRect();
-        const width = rect.width;
-        const height = rect.height;
-        if (width < 5 || height < 5) return;
+        if (rect.width < 5 || rect.height < 5) return;
         
         const color = getComputedStyle(el).borderColor || getColor(el);
         
-        const settings = getSettings();
-        const svg = createOverlaySVG(width, height);
+        const svg = createOverlaySVG(rect.width, rect.height);
+        const settings = { size: B.strokeSize };
+        const roughOpts = { roughness: B.roughness, bowing: B.bowing, seed: Math.random() * 10000 };
         
-        drawRoughShape(svg, generator.rectangle(2, 2, width - 4, height - 4, settings), color, settings);
+        drawRoughShape(svg, generator.rectangle(B.padding, B.padding, rect.width - B.padding * 2, rect.height - B.padding * 2, roughOpts), color, settings);
         
         el.style.position = 'relative';
         el.style.border = 'none';
@@ -989,83 +890,61 @@ function processBoxed() {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 10: TABLE LINES
-// Target: .hline (horizontal), .vertical-separator (vertical)
-// Handles: \hline, | in array column spec
 // ════════════════════════════════════════════════════════════════════════════════
 
 function processTableLines() {
     let count = 0;
+    const T = MASTER_SETTINGS.table;
     
-    // ═══════════════════════════════════════════════════════════════
-    // HORIZONTAL LINES (\hline)
-    // These have border-bottom CSS
-    // ═══════════════════════════════════════════════════════════════
+    // Horizontal lines
     document.querySelectorAll('.hline').forEach(el => {
         if (el.dataset.hwk) return;
         
         const rect = el.getBoundingClientRect();
-        const width = rect.width;
-        if (width < 3) return;
+        if (rect.width < 3) return;
         
         el.dataset.hwk = 'table-hline';
         
         const color = getComputedStyle(el).borderBottomColor || getColor(el);
-        const settings = getSettings();
-        
-        // Create overlay for horizontal line
         const svgHeight = 12;
-        const svg = createOverlaySVG(width, svgHeight);
+        
+        const svg = createOverlaySVG(rect.width, svgHeight);
         svg.style.top = '50%';
         svg.style.transform = 'translateY(-50%)';
-        svg.style.left = '0';
         
-        // Draw wavy horizontal line
-        const roughOpts = {
-            roughness: MASTER_SETTINGS.roughness,
-            bowing: MASTER_SETTINGS.bowing,
-            seed: Math.random() * 10000,
-        };
-        drawRoughShape(svg, generator.line(0, svgHeight / 2, width, svgHeight / 2, roughOpts), color, settings);
+        const settings = { size: T.strokeSize };
+        const roughOpts = { roughness: T.roughness, bowing: T.bowing, seed: Math.random() * 10000 };
         
-        // Hide original border, show our line
+        drawRoughShape(svg, generator.line(0, svgHeight / 2, rect.width, svgHeight / 2, roughOpts), color, settings);
+        
         el.style.position = 'relative';
         el.style.borderBottomColor = 'transparent';
         el.appendChild(svg);
         count++;
     });
     
-    // ═══════════════════════════════════════════════════════════════
-    // VERTICAL LINES (| in column spec)
-    // These have border-right CSS
-    // ═══════════════════════════════════════════════════════════════
+    // Vertical lines
     document.querySelectorAll('.vertical-separator').forEach(el => {
         if (el.dataset.hwk) return;
         
         const rect = el.getBoundingClientRect();
-        const height = rect.height;
-        if (height < 3) return;
+        if (rect.height < 3) return;
         
         el.dataset.hwk = 'table-vline';
         
         const color = getComputedStyle(el).borderRightColor || getColor(el);
-        const settings = getSettings();
-        
-        // Create overlay for vertical line
         const svgWidth = 12;
-        const svg = createOverlaySVG(svgWidth, height);
+        
+        const svg = createOverlaySVG(svgWidth, rect.height);
         svg.style.top = '0';
         svg.style.left = '50%';
         svg.style.transform = 'translateX(-50%)';
         
-        // Draw wavy vertical line
-        const roughOpts = {
-            roughness: MASTER_SETTINGS.roughness,
-            bowing: MASTER_SETTINGS.bowing,
-            seed: Math.random() * 10000,
-        };
-        drawRoughShape(svg, generator.line(svgWidth / 2, 0, svgWidth / 2, height, roughOpts), color, settings);
+        const settings = { size: T.strokeSize };
+        const roughOpts = { roughness: T.roughness, bowing: T.bowing, seed: Math.random() * 10000 };
         
-        // Hide original border, show our line
+        drawRoughShape(svg, generator.line(svgWidth / 2, 0, svgWidth / 2, rect.height, roughOpts), color, settings);
+        
         el.style.position = 'relative';
         el.style.borderRightColor = 'transparent';
         el.appendChild(svg);
@@ -1077,19 +956,17 @@ function processTableLines() {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 11: VECTOR ARROWS
-// Target: .accent .overlay svg (small vector arrows from \vec{})
-// Handles: \vec{F}, \vec{r}, etc.
 // ════════════════════════════════════════════════════════════════════════════════
 
 function processVectorArrows() {
     let count = 0;
+    const V = MASTER_SETTINGS.vector;
     
-    // Find all small vector arrows: .overlay > svg with viewBox containing 471
     document.querySelectorAll('.overlay svg').forEach(svg => {
         if (svg.dataset.hwk) return;
         
         const viewBox = svg.getAttribute('viewBox');
-        if (!viewBox || !viewBox.includes('471')) return; // Only small vec arrows
+        if (!viewBox || !viewBox.includes('471')) return;
         
         svg.dataset.hwk = 'vec-arrow';
         
@@ -1099,36 +976,24 @@ function processVectorArrows() {
         if (width < 3 || height < 3) return;
         
         const color = getColor(svg);
-        const settings = getSettings();
-        settings.size = Math.max(1.5, Math.min(3, height / 8));
+        const settings = { size: V.strokeSize };
         
-        // Clear original path
         clearSVG(svg);
-        
-        // Set viewBox to match actual size for easier drawing
         svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
         
-        // Draw hand-drawn arrow pointing right →
-        // Arrow shape: horizontal line with arrowhead
-        const roughOpts = {
-            roughness: MASTER_SETTINGS.roughness * 1.2,
-            bowing: MASTER_SETTINGS.bowing,
-            seed: Math.random() * 10000,
-        };
+        const roughOpts = { roughness: V.roughness, bowing: V.bowing, seed: Math.random() * 10000 };
         
-        const midY = height * 0.55; // Slightly below center
+        const midY = height * V.lineYPercent;
         const arrowTipX = width - 2;
         const arrowStartX = 2;
-        const arrowSize = Math.min(height * 0.35, width * 0.3, 6);
+        const arrowSize = Math.min(height * V.arrowSizePercent, V.maxArrowSize);
         
-        // Main horizontal line
+        // Main line
         drawRoughShape(svg, generator.line(arrowStartX, midY, arrowTipX - 1, midY, roughOpts), color, settings);
         
-        // Arrowhead - top line
+        // Arrowhead
         roughOpts.seed = Math.random() * 10000;
         drawRoughShape(svg, generator.line(arrowTipX, midY, arrowTipX - arrowSize, midY - arrowSize, roughOpts), color, settings);
-        
-        // Arrowhead - bottom line
         roughOpts.seed = Math.random() * 10000;
         drawRoughShape(svg, generator.line(arrowTipX, midY, arrowTipX - arrowSize, midY + arrowSize, roughOpts), color, settings);
         
@@ -1142,12 +1007,7 @@ function processVectorArrows() {
 // MAIN API
 // ════════════════════════════════════════════════════════════════════════════════
 
-/**
- * Apply handwriting geometry to all KaTeX elements on the page
- * @returns {Object} Counts of processed elements by type
- */
 export async function applyHandwritingGeometry() {
-    // Ensure dependencies are loaded
     if (!dependenciesLoaded) {
         await initDependencies();
     }
@@ -1163,252 +1023,42 @@ export async function applyHandwritingGeometry() {
         strike: processStrikethrough(),
         boxed: processBoxed(),
         tableLines: processTableLines(),
-        vectorArrows: processVectorArrows(),  // NEW! Small \vec{} arrows
+        vectorArrows: processVectorArrows(),
     };
     
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
-    console.log('[KaTeX-HWK] Applied to', total, 'elements:', counts);
+    console.log('[KaTeX-HWG v4.0] Applied to', total, 'elements:', counts);
     
     return counts;
 }
 
-/**
- * Remove all handwriting geometry and restore original appearance
- */
 export function clearHandwritingGeometry() {
-    // Remove overlay SVGs
     document.querySelectorAll('.hwk-overlay').forEach(svg => svg.remove());
-    
-    // Remove paths we added to existing SVGs
     document.querySelectorAll('.hwk-path').forEach(path => path.remove());
     
-    // Reset all processed elements
-    document.querySelectorAll('[data-hwk]').forEach(el => { 
-        el.removeAttribute('data-hwk'); 
-        el.style.borderBottomColor = ''; 
-        el.style.borderRightColor = '';  // For table vertical lines
-        el.style.opacity = ''; 
-        el.style.border = ''; 
+    document.querySelectorAll('[data-hwk]').forEach(el => {
+        el.removeAttribute('data-hwk');
+        el.style.borderBottomColor = '';
+        el.style.borderRightColor = '';
+        el.style.opacity = '';
+        el.style.border = '';
+        el.style.visibility = '';
     });
     
-    // Restore hidden SVGs
-    document.querySelectorAll('.stretchy svg').forEach(svg => svg.style.opacity = '');
+    document.querySelectorAll('.stretchy svg, .delimsizinginner, .delimsizing svg').forEach(el => {
+        el.style.opacity = '';
+        el.style.visibility = '';
+    });
     
-    // Restore hidden lines
     document.querySelectorAll('line').forEach(line => line.style.opacity = '');
     
-    console.log('[KaTeX-HWK] Cleared all handwriting geometry');
+    console.log('[KaTeX-HWG v4.0] Cleared all handwriting geometry');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════
-// DEBUG UTILITIES
-// Use these functions to debug broken elements
-// ════════════════════════════════════════════════════════════════════════════════
-
-/**
- * Debug a KaTeX element to analyze its structure
- * @param {HTMLElement} container - Container element with KaTeX content
- * @returns {string} Debug output
- */
-export function debugElement(container) {
-    let output = '';
-    
-    output += '════════════════════════════════════════════════════════════════\n';
-    output += 'DEBUG ANALYSIS\n';
-    output += '════════════════════════════════════════════════════════════════\n\n';
-    
-    // Find SVGs
-    const svgs = container.querySelectorAll('svg');
-    output += `📊 SVGs found: ${svgs.length}\n`;
-    svgs.forEach((svg, i) => {
-        const rect = svg.getBoundingClientRect();
-        output += `\n─── SVG #${i + 1} ───\n`;
-        output += `  viewBox: ${svg.getAttribute('viewBox') || 'none'}\n`;
-        output += `  width/height attr: ${svg.getAttribute('width')} x ${svg.getAttribute('height')}\n`;
-        output += `  boundingRect: ${rect.width.toFixed(1)} x ${rect.height.toFixed(1)}\n`;
-        output += `  data-hwk: ${svg.dataset.hwk || 'not processed'}\n`;
-        
-        // Parent chain
-        let parent = svg.parentElement;
-        const chain = [];
-        for (let j = 0; j < 6 && parent; j++) {
-            if (parent.className) chain.push(parent.className);
-            parent = parent.parentElement;
-        }
-        output += `  parent chain: ${chain.join(' → ')}\n`;
-        
-        // Check for lines
-        const lines = svg.querySelectorAll('line');
-        if (lines.length > 0) {
-            output += `  <line> elements: ${lines.length}\n`;
-            lines.forEach((line, li) => {
-                output += `    line ${li + 1}: (${line.getAttribute('x1')},${line.getAttribute('y1')}) → (${line.getAttribute('x2')},${line.getAttribute('y2')})\n`;
-            });
-        }
-        
-        // Check key indicators
-        const indicators = ['.mover', '.munder', '.stretchy', '.x-arrow', '.accent', '.sqrt', '.delimsizing', '.svg-align'];
-        indicators.forEach(sel => {
-            if (svg.closest(sel)) output += `  ⭐ Inside ${sel}\n`;
-        });
-    });
-    
-    // Key structural elements
-    output += '\n📋 KEY STRUCTURAL ELEMENTS:\n';
-    const keyClasses = ['.sqrt', '.delimsizing', '.mover', '.munder', '.stretchy', '.accent', '.x-arrow', '.svg-align', '.cancel', '.boxed', '.frac-line'];
-    keyClasses.forEach(cls => {
-        const els = container.querySelectorAll(cls);
-        if (els.length > 0) {
-            output += `\n  ${cls}: ${els.length} found\n`;
-            els.forEach((el, i) => {
-                const rect = el.getBoundingClientRect();
-                output += `    #${i + 1}: ${rect.width.toFixed(1)}x${rect.height.toFixed(1)}`;
-                if (el.querySelector('svg')) output += ' [has SVG]';
-                if (el.querySelector('line')) output += ' [has LINE]';
-                if (el.dataset.hwk) output += ` [hwk: ${el.dataset.hwk}]`;
-                output += '\n';
-            });
-        }
-    });
-    
-    // HTML structure (abbreviated)
-    output += '\n📝 HTML STRUCTURE (first 3000 chars):\n';
-    output += '────────────────────────────────────────\n';
-    output += container.innerHTML
-        .replace(/></g, '>\n<')
-        .replace(/style="[^"]*"/g, 'style="..."')
-        .substring(0, 3000);
-    
-    console.log(output);
-    return output;
-}
-
-/**
- * Highlight specific elements for visual debugging
- * @param {string} selector - CSS selector
- * @param {string} color - Outline color
- */
-export function highlightElements(selector, color = 'red') {
-    document.querySelectorAll(selector).forEach(el => {
-        el.style.outline = el.style.outline ? '' : `3px solid ${color}`;
-    });
-}
-
-/**
- * List all unprocessed SVGs (potential bugs)
- * @returns {Array} List of unprocessed SVG elements
- */
-export function findUnprocessedSVGs() {
-    const unprocessed = [];
-    document.querySelectorAll('.katex svg').forEach(svg => {
-        if (!svg.dataset.hwk && !svg.closest('.katex-mathml')) {
-            unprocessed.push({
-                element: svg,
-                viewBox: svg.getAttribute('viewBox'),
-                parent: svg.parentElement?.className,
-                hasLines: svg.querySelectorAll('line').length > 0,
-            });
-        }
-    });
-    console.log('[KaTeX-HWK] Unprocessed SVGs:', unprocessed);
-    return unprocessed;
-}
-
-// ════════════════════════════════════════════════════════════════════════════════
-// PROCESSOR TEMPLATES
-// Copy these templates when adding new processors
-// ════════════════════════════════════════════════════════════════════════════════
-
-/*
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ TEMPLATE: New Processor                                                       │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ 1. Identify the target element using debugElement()                          │
-│ 2. Find the selector pattern (e.g., '.myclass svg')                          │
-│ 3. Determine if drawing INTO existing SVG or creating OVERLAY                │
-│ 4. Copy the appropriate template below                                        │
-└──────────────────────────────────────────────────────────────────────────────┘
-
-// ════════════════════════════════════════════════════════════════════════════════
-// PROCESSOR N: [NAME]
-// Target: [selector]
-// Handles: [LaTeX commands]
-// ════════════════════════════════════════════════════════════════════════════════
-
-function processMyElement() {
-    let count = 0;
-    
-    document.querySelectorAll('[YOUR_SELECTOR]').forEach(el => {
-        // Skip if already processed
-        if (el.dataset.hwk) return;
-        
-        // Mark as processed
-        el.dataset.hwk = 'my-element';
-        
-        // Get dimensions
-        const rect = el.getBoundingClientRect();
-        const width = rect.width;
-        const height = rect.height;
-        if (width < 5 || height < 5) return;
-        
-        // Get color
-        const color = getColor(el);
-        
-        // Get randomized settings
-        const settings = getSettings();
-        
-        // OPTION A: Draw INTO existing SVG (for elements with viewBox)
-        // ─────────────────────────────────────────────────────────────
-        // const svg = el.querySelector('svg');
-        // if (!svg) return;
-        // const viewBox = svg.getAttribute('viewBox');
-        // if (!viewBox) return;
-        // const [, , vbWidth, vbHeight] = viewBox.split(' ').map(Number);
-        // clearSVG(svg);
-        // drawRoughShape(svg, generator.line(0, 0, vbWidth, vbHeight, settings), color, settings);
-        
-        // OPTION B: Create OVERLAY SVG (for elements without SVG)
-        // ─────────────────────────────────────────────────────────────
-        // const svg = createOverlaySVG(width, height);
-        // drawRoughShape(svg, generator.line(0, 0, width, height, settings), color, settings);
-        // el.style.position = 'relative';
-        // el.appendChild(svg);
-        
-        // OPTION C: Hide original + create overlay (for complex SVGs)
-        // ─────────────────────────────────────────────────────────────
-        // el.querySelectorAll('svg').forEach(s => s.style.opacity = '0');
-        // const svg = createOverlaySVG(width, height);
-        // drawRoughShape(svg, generator.line(0, 0, width, height, settings), color, settings);
-        // el.style.position = 'relative';
-        // el.appendChild(svg);
-        
-        count++;
-    });
-    
-    return count;
-}
-
-// Don't forget to add to applyHandwritingGeometry():
-// myElement: processMyElement(),
-
-*/
-
-// ════════════════════════════════════════════════════════════════════════════════
-// BROWSER GLOBAL EXPORTS
-// ════════════════════════════════════════════════════════════════════════════════
-
-if (typeof window !== 'undefined') {
-    window.KaTeXHandwriting = {
-        apply: applyHandwritingGeometry,
-        clear: clearHandwritingGeometry,
-        init: initDependencies,
-        debug: debugElement,
-        highlight: highlightElements,
-        findUnprocessed: findUnprocessedSVGs,
-        config: CONFIG,
-    };
-    
-    // Also expose main functions directly
-    window.applyHandwritingGeometry = applyHandwritingGeometry;
-    window.clearHandwritingGeometry = clearHandwritingGeometry;
-}
+// Export for use
+export default { 
+    initDependencies, 
+    applyHandwritingGeometry, 
+    clearHandwritingGeometry, 
+    MASTER_SETTINGS 
+};
