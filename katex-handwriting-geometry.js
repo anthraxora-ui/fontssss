@@ -1,6 +1,6 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
- * ║                    KATEX HANDWRITING GEOMETRY v3.1                          ║
+ * ║                    KATEX HANDWRITING GEOMETRY v3.2                          ║
  * ║                         Production Ready                                     ║
  * ╠══════════════════════════════════════════════════════════════════════════════╣
  * ║  Transforms KaTeX mathematical notation into hand-drawn style               ║
@@ -45,6 +45,91 @@
  *   Use: debugElement(containerElement) to analyze KaTeX structure.
  */
 
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║                                                                              ║
+// ║                    ★★★ MASTER SETTINGS - TWEAK HERE! ★★★                   ║
+// ║                                                                              ║
+// ║  Adjust these numbers to change the hand-drawn appearance                   ║
+// ║  Each setting has a recommended range in comments                           ║
+// ║                                                                              ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+
+const MASTER_SETTINGS = {
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PERFECT-FREEHAND SETTINGS (stroke appearance)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    strokeSize: 3.0,          // Base stroke thickness [1.5 - 5.0] bigger = thicker lines
+    thinning: 0.25,           // Pressure variation [-0.1 - 0.5] higher = more thin/thick variation
+    smoothing: 0.4,           // Curve smoothing [0 - 1] lower = more sketchy
+    streamline: 0.4,          // Path simplification [0 - 1] lower = more wobbly
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ROUGH.JS SETTINGS (hand-drawn feel)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    roughness: 2.0,           // Line roughness [0.5 - 3.5] higher = more wobbly/sketchy
+    bowing: 1.4,              // Line bowing [0.3 - 3.0] higher = more curved lines
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RANDOMIZATION (natural variation)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    sizeVariance: 1.0,        // Stroke size randomness [0 - 2.0]
+    thinningVariance: 0.2,    // Thinning randomness [0 - 0.3]
+    roughnessVariance: 0.6,   // Roughness randomness [0 - 1.0]
+    bowingVariance: 0.5,      // Bowing randomness [0 - 1.0]
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SQUARE ROOT SPECIFIC (extra rough for √ symbols)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    sqrt: {
+        roughness: 3.5,       // Extra rough for square roots [2.0 - 4.0]
+        bowing: 3.0,          // Extra bowing [1.5 - 4.0]
+        thinning: 0.4,        // More pressure variation [0.2 - 0.5]
+        smoothing: 0.2,       // Less smooth = more rough [0.1 - 0.4]
+        streamline: 0.2,      // Less streamline = more wobbly [0.1 - 0.4]
+        wobblePercent: 0.06,  // Position wobble as % of height [0.02 - 0.10]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // OVERBRACE / UNDERBRACE SPECIFIC
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    brace: {
+        roughness: 2.5,       // Brace roughness [1.5 - 3.5]
+        bowing: 1.8,          // Brace bowing [1.0 - 2.5]
+        sizeMultiplier: 5,    // Divide thin dimension by this [3 - 8] smaller = thicker
+        tipPercent: 0.1,      // Tip size as % of length [0.05 - 0.15]
+        maxTip: 10,           // Maximum tip size in pixels [5 - 20]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DELIMITER SPECIFIC (parentheses, brackets)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    delimiter: {
+        bowPercent: 0.75,     // How much the arc curves [0.5 - 0.9]
+        wobble: 25,           // Random X wobble in viewBox units [10 - 40]
+        sizeMultiplier: 55,   // Divide height by this for stroke [40 - 70]
+        minSize: 18,          // Minimum stroke size [12 - 25]
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LINE INTERPOLATION (waviness of all lines)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    line: {
+        waveAmount: 0.015,    // Sine wave amplitude [0.005 - 0.025]
+        wobbleAmount: 0.02,   // Random wobble amplitude [0.01 - 0.03]
+        waveFrequency: 3,     // Sine wave frequency [2 - 5]
+        minSteps: 15,         // Minimum interpolation steps [10 - 25]
+        stepDivisor: 2.5,     // Distance per step [1.5 - 4.0]
+    },
+};
+
 // ════════════════════════════════════════════════════════════════════════════════
 // DEPENDENCY MANAGEMENT
 // ════════════════════════════════════════════════════════════════════════════════
@@ -79,29 +164,24 @@ export async function initDependencies() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
-// CONFIGURATION
+// CONFIGURATION (uses MASTER_SETTINGS)
 // ════════════════════════════════════════════════════════════════════════════════
 
 /**
- * Base settings for hand-drawn effect
- * Adjust these values to change the overall appearance
+ * Base settings derived from MASTER_SETTINGS
+ * These are applied with randomization for natural variation
  */
 const CONFIG = {
-    // Stroke appearance
-    size: 3.0,           // Base stroke thickness (1.5 - 4.5)
-    thinning: 0.25,      // Pressure variation (-0.1 - 0.45)
-    smoothing: 0.4,      // Curve smoothing (0 - 1) - lower = more sketchy
-    streamline: 0.4,     // Path simplification (0 - 1) - lower = more rough
-    
-    // Roughness (hand-drawn feel) - INCREASED for sketchy look!
-    roughness: 2.0,      // Line roughness (0.8 - 3.0) - higher = more wobbly
-    bowing: 1.4,         // Line bowing/curvature (0.3 - 2.0) - higher = more curved
-    
-    // Randomization variance - INCREASED for more variation!
-    sizeVariance: 1.0,
-    thinningVariance: 0.2,
-    roughnessVariance: 0.6,
-    bowingVariance: 0.5,
+    size: MASTER_SETTINGS.strokeSize,
+    thinning: MASTER_SETTINGS.thinning,
+    smoothing: MASTER_SETTINGS.smoothing,
+    streamline: MASTER_SETTINGS.streamline,
+    roughness: MASTER_SETTINGS.roughness,
+    bowing: MASTER_SETTINGS.bowing,
+    sizeVariance: MASTER_SETTINGS.sizeVariance,
+    thinningVariance: MASTER_SETTINGS.thinningVariance,
+    roughnessVariance: MASTER_SETTINGS.roughnessVariance,
+    bowingVariance: MASTER_SETTINGS.bowingVariance,
 };
 
 /**
@@ -118,8 +198,8 @@ function getSettings() {
         smoothing: CONFIG.smoothing, 
         streamline: CONFIG.streamline, 
         simulatePressure: true, 
-        roughness: clamp(rand(CONFIG.roughness, CONFIG.roughnessVariance), 1.0, 3.0), 
-        bowing: clamp(rand(CONFIG.bowing, CONFIG.bowingVariance), 0.5, 2.2), 
+        roughness: clamp(rand(CONFIG.roughness, CONFIG.roughnessVariance), 1.0, 3.5), 
+        bowing: clamp(rand(CONFIG.bowing, CONFIG.bowingVariance), 0.5, 2.5), 
         disableMultiStroke: true, 
         seed: Math.floor(Math.random() * 10000) 
     };
@@ -136,7 +216,7 @@ function getSettings() {
 function interpolateLine(p0, p1) {
     const points = [];
     const distance = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
-    const steps = Math.max(15, Math.ceil(distance / 2.5));
+    const steps = Math.max(MASTER_SETTINGS.line.minSteps, Math.ceil(distance / MASTER_SETTINGS.line.stepDivisor));
     
     // Calculate perpendicular direction for wobble
     const dx = p1[0] - p0[0];
@@ -150,9 +230,9 @@ function interpolateLine(p0, p1) {
         let x = p0[0] + (p1[0] - p0[0]) * t;
         let y = p0[1] + (p1[1] - p0[1]) * t;
         
-        // Add WAVY wobble perpendicular to line direction
-        const waveAmount = Math.sin(t * Math.PI * 3) * distance * 0.015;  // Wave pattern
-        const randomWobble = (Math.random() - 0.5) * distance * 0.02;     // Random jitter
+        // Add WAVY wobble perpendicular to line direction (uses MASTER_SETTINGS)
+        const waveAmount = Math.sin(t * Math.PI * MASTER_SETTINGS.line.waveFrequency) * distance * MASTER_SETTINGS.line.waveAmount;
+        const randomWobble = (Math.random() - 0.5) * distance * MASTER_SETTINGS.line.wobbleAmount;
         x += perpX * (waveAmount + randomWobble);
         y += perpY * (waveAmount + randomWobble);
         
@@ -288,14 +368,112 @@ function getColor(element) {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // PROCESSOR 1: BIG DELIMITERS
-// Target: .delimsizing svg (with viewBox)
+// Target: .delimsizing svg (with viewBox) AND stacked braces (.delimsizing.mult)
 // Handles: ( ) [ ] { } | || ⟨ ⟩ ⌊ ⌋ ⌈ ⌉
 // ════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Draw vertical curly brace { or }
+ * SAME LOGIC AS OVERBRACE - JUST ROTATED 90°!
+ */
+function drawVerticalCurlyBrace(svg, width, height, isOpen, color) {
+    const roughOpts = { 
+        roughness: MASTER_SETTINGS.brace.roughness, 
+        bowing: MASTER_SETTINGS.brace.bowing, 
+        seed: Math.random() * 10000 
+    };
+    const braceSettings = { 
+        size: Math.max(1.8, width / MASTER_SETTINGS.brace.sizeMultiplier) 
+    };
+    
+    const midY = height / 2;
+    const tipW = Math.min(height * MASTER_SETTINGS.brace.tipPercent, MASTER_SETTINGS.brace.maxTip);
+    
+    if (isOpen) {
+        // Opening brace { - tip points LEFT
+        // Same as UNDERBRACE rotated 90° counterclockwise
+        const rightX = width - 3;
+        const leftX = 2;
+        
+        // Line 1: Top vertical (like overbrace left horizontal)
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(rightX, 0, rightX, midY - tipW, roughOpts), color, braceSettings);
+        
+        // Line 2: Diagonal to tip (like overbrace diagonal down)
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(rightX, midY - tipW, leftX, midY, roughOpts), color, braceSettings);
+        
+        // Line 3: Diagonal from tip (like overbrace diagonal up)
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(leftX, midY, rightX, midY + tipW, roughOpts), color, braceSettings);
+        
+        // Line 4: Bottom vertical (like overbrace right horizontal)
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(rightX, midY + tipW, rightX, height, roughOpts), color, braceSettings);
+        
+    } else {
+        // Closing brace } - tip points RIGHT
+        const rightX = width - 2;
+        const leftX = 3;
+        
+        // Line 1: Top vertical
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(leftX, 0, leftX, midY - tipW, roughOpts), color, braceSettings);
+        
+        // Line 2: Diagonal to tip
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(leftX, midY - tipW, rightX, midY, roughOpts), color, braceSettings);
+        
+        // Line 3: Diagonal from tip
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(rightX, midY, leftX, midY + tipW, roughOpts), color, braceSettings);
+        
+        // Line 4: Bottom vertical
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(leftX, midY + tipW, leftX, height, roughOpts), color, braceSettings);
+    }
+}
 
 function processDelimiters() {
     let count = 0;
     
     document.querySelectorAll('.delimsizing').forEach(delimEl => {
+        if (delimEl.dataset.hwk) return;
+        
+        const rect = delimEl.getBoundingClientRect();
+        const color = getColor(delimEl);
+        const isOpen = delimEl.closest('.mopen') !== null;
+        const width = rect.width;
+        const height = rect.height;
+        
+        // Check for stacked curly brace (mult class with delimsizinginner)
+        const hasMultClass = delimEl.classList.contains('mult');
+        const delimInner = delimEl.querySelectorAll('.delimsizinginner');
+        const svgs = delimEl.querySelectorAll('svg');
+        
+        // ═══════════════════════════════════════════════════════════════
+        // TYPE 1: STACKED CURLY BRACE (mult + delimsizinginner)
+        // Has ⎧⎨⎩ characters + SVG extenders - draw unified brace
+        // ═══════════════════════════════════════════════════════════════
+        if (hasMultClass && delimInner.length > 0) {
+            delimEl.dataset.hwk = 'stacked-brace';
+            
+            // Hide the original parts
+            delimInner.forEach(el => el.style.visibility = 'hidden');
+            svgs.forEach(svg => svg.style.visibility = 'hidden');
+            
+            // Create overlay and draw curly brace
+            delimEl.style.position = 'relative';
+            const overlay = createOverlaySVG(width, height);
+            drawVerticalCurlyBrace(overlay, width, height, isOpen, color);
+            delimEl.appendChild(overlay);
+            count++;
+            return; // Skip to next element
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // TYPE 2: SVG-BASED DELIMITER (parenthesis, bracket, etc)
+        // ═══════════════════════════════════════════════════════════════
         const svg = delimEl.querySelector('svg');
         if (!svg || svg.dataset.hwk) return;
         
@@ -303,13 +481,15 @@ function processDelimiters() {
         if (!viewBox) return;
         
         svg.dataset.hwk = 'delimiter';
+        delimEl.dataset.hwk = 'svg-delim';
         
         const [, , vbWidth, vbHeight] = viewBox.split(' ').map(Number);
-        const color = getColor(delimEl);
-        const isOpeningDelim = delimEl.closest('.mopen') !== null;
         
         const settings = getSettings();
-        settings.size = Math.max(18, Math.min(55, vbHeight / 55));
+        settings.size = Math.max(
+            MASTER_SETTINGS.delimiter.minSize, 
+            Math.min(55, vbHeight / MASTER_SETTINGS.delimiter.sizeMultiplier)
+        );
         
         clearSVG(svg);
         
@@ -317,7 +497,7 @@ function processDelimiters() {
         const points = [];
         const numPoints = 45;
         const paddingY = vbHeight * 0.015;
-        const bowAmount = vbWidth * 0.75;
+        const bowAmount = vbWidth * MASTER_SETTINGS.delimiter.bowPercent;
         
         for (let i = 0; i <= numPoints; i++) { 
             const t = i / numPoints;
@@ -325,13 +505,13 @@ function processDelimiters() {
             const arcAmount = Math.sin(t * Math.PI);
             
             let x;
-            if (isOpeningDelim) {
+            if (isOpen) {
                 x = vbWidth - 40 - arcAmount * bowAmount;
             } else {
                 x = 40 + arcAmount * bowAmount;
             }
             
-            x += (Math.random() - 0.5) * 25;
+            x += (Math.random() - 0.5) * MASTER_SETTINGS.delimiter.wobble;
             const pressure = 0.25 + arcAmount * 0.45;
             points.push([x, y, pressure]); 
         }
@@ -406,25 +586,25 @@ function processSquareRoots() {
         const settings = getSettings();
         settings.size = Math.max(22, Math.min(85, vbHeight / 14));
         
-        // MAXIMUM ROUGHNESS for sqrt - very sketchy and wavy!
+        // Use MASTER_SETTINGS for sqrt - very sketchy and wavy!
         const roughOpts = {
-            roughness: 3.5,           // Maximum rough!
-            bowing: 3.0,              // Maximum curved!
+            roughness: MASTER_SETTINGS.sqrt.roughness,
+            bowing: MASTER_SETTINGS.sqrt.bowing,
             seed: Math.floor(Math.random() * 10000),
-            disableMultiStroke: false, // Allow multiple strokes for sketch effect
+            disableMultiStroke: false,
             strokeWidth: 1,
         };
         
         // Perfect-freehand settings for sqrt - more variation
         const sqrtSettings = {
             ...settings,
-            thinning: 0.4,      // More pressure variation
-            smoothing: 0.2,     // Less smooth = more rough
-            streamline: 0.2,    // Less streamline = more wobbly
+            thinning: MASTER_SETTINGS.sqrt.thinning,
+            smoothing: MASTER_SETTINGS.sqrt.smoothing,
+            streamline: MASTER_SETTINGS.sqrt.streamline,
         };
         
-        // Square root shape with MORE wobble for wavy look (6%)
-        const wobble = () => (Math.random() - 0.5) * vbHeight * 0.06;
+        // Square root shape with wobble for wavy look
+        const wobble = () => (Math.random() - 0.5) * vbHeight * MASTER_SETTINGS.sqrt.wobblePercent;
         const surdWidth = Math.min(vbHeight * 0.85, 850);
         const topY = vbHeight * 0.04 + wobble();
         const bottomY = vbHeight * 0.96 + wobble();
@@ -535,8 +715,16 @@ function processStretchyBraces() {
         if (width < 10 || height < 3) return;
         
         const color = getColor(stretchyEl);
-        const settings = getSettings();
-        settings.size = Math.max(1.8, Math.min(3.2, height / 5));
+        
+        // Use MASTER_SETTINGS for brace
+        const roughOpts = {
+            roughness: MASTER_SETTINGS.brace.roughness,
+            bowing: MASTER_SETTINGS.brace.bowing,
+            seed: Math.random() * 10000,
+        };
+        const settings = {
+            size: Math.max(1.8, height / MASTER_SETTINGS.brace.sizeMultiplier),
+        };
         
         // Hide original SVGs
         stretchyEl.querySelectorAll('svg').forEach(svg => svg.style.opacity = '0');
@@ -546,24 +734,32 @@ function processStretchyBraces() {
         
         const isUnderbrace = inMunder !== null;
         const midX = width / 2;
-        const tipWidth = Math.min(width * 0.1, 10);
+        const tipWidth = Math.min(width * MASTER_SETTINGS.brace.tipPercent, MASTER_SETTINGS.brace.maxTip);
         
         if (isUnderbrace) {
             // Underbrace ⏟ - tip points DOWN
             const topY = 3;
             const bottomY = height - 2;
-            drawRoughShape(svg, generator.line(0, topY, midX - tipWidth, topY, settings), color, settings);
-            drawRoughShape(svg, generator.line(midX - tipWidth, topY, midX, bottomY, settings), color, settings);
-            drawRoughShape(svg, generator.line(midX, bottomY, midX + tipWidth, topY, settings), color, settings);
-            drawRoughShape(svg, generator.line(midX + tipWidth, topY, width, topY, settings), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(0, topY, midX - tipWidth, topY, roughOpts), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(midX - tipWidth, topY, midX, bottomY, roughOpts), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(midX, bottomY, midX + tipWidth, topY, roughOpts), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(midX + tipWidth, topY, width, topY, roughOpts), color, settings);
         } else {
             // Overbrace ⏞ - tip points UP
             const topY = 2;
             const bottomY = height - 3;
-            drawRoughShape(svg, generator.line(0, bottomY, midX - tipWidth, bottomY, settings), color, settings);
-            drawRoughShape(svg, generator.line(midX - tipWidth, bottomY, midX, topY, settings), color, settings);
-            drawRoughShape(svg, generator.line(midX, topY, midX + tipWidth, bottomY, settings), color, settings);
-            drawRoughShape(svg, generator.line(midX + tipWidth, bottomY, width, bottomY, settings), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(0, bottomY, midX - tipWidth, bottomY, roughOpts), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(midX - tipWidth, bottomY, midX, topY, roughOpts), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(midX, topY, midX + tipWidth, bottomY, roughOpts), color, settings);
+            roughOpts.seed = Math.random() * 10000;
+            drawRoughShape(svg, generator.line(midX + tipWidth, bottomY, width, bottomY, roughOpts), color, settings);
         }
         
         stretchyEl.style.position = 'relative';
