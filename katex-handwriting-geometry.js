@@ -1,6 +1,6 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
- * ║                    KATEX HANDWRITING GEOMETRY v3.2                          ║
+ * ║                    KATEX HANDWRITING GEOMETRY v3.3                          ║
  * ║                         Production Ready                                     ║
  * ╠══════════════════════════════════════════════════════════════════════════════╣
  * ║  Transforms KaTeX mathematical notation into hand-drawn style               ║
@@ -27,17 +27,19 @@
  *   - perfect-freehand: https://esm.sh/perfect-freehand@1.2.0
  *   - rough.js: https://unpkg.com/roughjs@latest/bundled/rough.esm.js
  * 
- * PROCESSORS (9 total):
+ * PROCESSORS (11 total):
  * ──────────────────────────────────────────────────────────────────────────────
  *   1. processDelimiters()      - Big ( ) [ ] { } | ⟨ ⟩ ⌊ ⌋ ⌈ ⌉
  *   2. processHorizontalLines() - Fraction bars, overlines, underlines
  *   3. processSquareRoots()     - √ symbols (including nested)
- *   4. processExtensibleArrows()- \xrightarrow, \xleftarrow
+ *   4. processExtensibleArrows()- \xrightarrow, \xleftarrow, \overrightarrow
  *   5. processStretchyBraces()  - \overbrace, \underbrace
  *   6. processWideAccents()     - \widehat, \widetilde
  *   7. processCancel()          - \cancel, \bcancel, \xcancel
  *   8. processStrikethrough()   - \sout
  *   9. processBoxed()           - \boxed, \fbox
+ *  10. processTableLines()      - \hline, | in arrays/matrices
+ *  11. processVectorArrows()    - \vec{} small arrows
  * 
  * DEBUG:
  * ──────────────────────────────────────────────────────────────────────────────
@@ -63,13 +65,13 @@ const MASTER_SETTINGS = {
     strokeSize: 3.0,          // Base stroke thickness [1.5 - 5.0] bigger = thicker lines
     thinning: 0.25,           // Pressure variation [-0.1 - 0.5] higher = more thin/thick variation
     smoothing: 0.4,           // Curve smoothing [0 - 1] lower = more sketchy
-    streamline: 0.1,          // Path simplification [0 - 1] lower = more wobbly
+    streamline: 0.4,          // Path simplification [0 - 1] lower = more wobbly
     
     // ═══════════════════════════════════════════════════════════════════════════
     // ROUGH.JS SETTINGS (hand-drawn feel)
     // ═══════════════════════════════════════════════════════════════════════════
     
-    roughness: 3.0,           // Line roughness [0.5 - 3.5] higher = more wobbly/sketchy
+    roughness: 2.0,           // Line roughness [0.5 - 3.5] higher = more wobbly/sketchy
     bowing: 1.4,              // Line bowing [0.3 - 3.0] higher = more curved lines
     
     // ═══════════════════════════════════════════════════════════════════════════
@@ -86,11 +88,11 @@ const MASTER_SETTINGS = {
     // ═══════════════════════════════════════════════════════════════════════════
     
     sqrt: {
-        roughness: 5,       // Extra rough for square roots [2.0 - 4.0]
-        bowing: 4.0,          // Extra bowing [1.5 - 4.0]
+        roughness: 3.5,       // Extra rough for square roots [2.0 - 4.0]
+        bowing: 3.0,          // Extra bowing [1.5 - 4.0]
         thinning: 0.4,        // More pressure variation [0.2 - 0.5]
         smoothing: 0.2,       // Less smooth = more rough [0.1 - 0.4]
-        streamline: 0.1,      // Less streamline = more wobbly [0.1 - 0.4]
+        streamline: 0.2,      // Less streamline = more wobbly [0.1 - 0.4]
         wobblePercent: 0.06,  // Position wobble as % of height [0.02 - 0.10]
     },
     
@@ -446,7 +448,7 @@ function processDelimiters() {
         const width = rect.width;
         const height = rect.height;
         
-        // Check for stacked curly brace (mult class with delimsizinginner)
+        // Check for stacked delimiter (mult class)
         const hasMultClass = delimEl.classList.contains('mult');
         const delimInner = delimEl.querySelectorAll('.delimsizinginner');
         const svgs = delimEl.querySelectorAll('svg');
@@ -472,7 +474,37 @@ function processDelimiters() {
         }
         
         // ═══════════════════════════════════════════════════════════════
-        // TYPE 2: SVG-BASED DELIMITER (parenthesis, bracket, etc)
+        // TYPE 2: STACKED VERTICAL BAR (mult + SVG but no delimsizinginner)
+        // This is vmatrix | | - just draw a straight vertical line!
+        // ═══════════════════════════════════════════════════════════════
+        if (hasMultClass && svgs.length > 0 && delimInner.length === 0) {
+            delimEl.dataset.hwk = 'stacked-vbar';
+            
+            // Hide the original SVG
+            svgs.forEach(svg => svg.style.visibility = 'hidden');
+            
+            // Create overlay and draw simple vertical line
+            delimEl.style.position = 'relative';
+            const overlay = createOverlaySVG(width, height);
+            
+            const roughOpts = {
+                roughness: MASTER_SETTINGS.roughness,
+                bowing: MASTER_SETTINGS.bowing,
+                seed: Math.random() * 10000,
+            };
+            const settings = { size: Math.max(1.8, width / 4) };
+            
+            // Draw vertical line in the center
+            const midX = width / 2;
+            drawRoughShape(overlay, generator.line(midX, 2, midX, height - 2, roughOpts), color, settings);
+            
+            delimEl.appendChild(overlay);
+            count++;
+            return;
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // TYPE 3: SVG-BASED DELIMITER (big parenthesis, bracket with viewBox)
         // ═══════════════════════════════════════════════════════════════
         const svg = delimEl.querySelector('svg');
         if (!svg || svg.dataset.hwk) return;
@@ -956,6 +988,157 @@ function processBoxed() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
+// PROCESSOR 10: TABLE LINES
+// Target: .hline (horizontal), .vertical-separator (vertical)
+// Handles: \hline, | in array column spec
+// ════════════════════════════════════════════════════════════════════════════════
+
+function processTableLines() {
+    let count = 0;
+    
+    // ═══════════════════════════════════════════════════════════════
+    // HORIZONTAL LINES (\hline)
+    // These have border-bottom CSS
+    // ═══════════════════════════════════════════════════════════════
+    document.querySelectorAll('.hline').forEach(el => {
+        if (el.dataset.hwk) return;
+        
+        const rect = el.getBoundingClientRect();
+        const width = rect.width;
+        if (width < 3) return;
+        
+        el.dataset.hwk = 'table-hline';
+        
+        const color = getComputedStyle(el).borderBottomColor || getColor(el);
+        const settings = getSettings();
+        
+        // Create overlay for horizontal line
+        const svgHeight = 12;
+        const svg = createOverlaySVG(width, svgHeight);
+        svg.style.top = '50%';
+        svg.style.transform = 'translateY(-50%)';
+        svg.style.left = '0';
+        
+        // Draw wavy horizontal line
+        const roughOpts = {
+            roughness: MASTER_SETTINGS.roughness,
+            bowing: MASTER_SETTINGS.bowing,
+            seed: Math.random() * 10000,
+        };
+        drawRoughShape(svg, generator.line(0, svgHeight / 2, width, svgHeight / 2, roughOpts), color, settings);
+        
+        // Hide original border, show our line
+        el.style.position = 'relative';
+        el.style.borderBottomColor = 'transparent';
+        el.appendChild(svg);
+        count++;
+    });
+    
+    // ═══════════════════════════════════════════════════════════════
+    // VERTICAL LINES (| in column spec)
+    // These have border-right CSS
+    // ═══════════════════════════════════════════════════════════════
+    document.querySelectorAll('.vertical-separator').forEach(el => {
+        if (el.dataset.hwk) return;
+        
+        const rect = el.getBoundingClientRect();
+        const height = rect.height;
+        if (height < 3) return;
+        
+        el.dataset.hwk = 'table-vline';
+        
+        const color = getComputedStyle(el).borderRightColor || getColor(el);
+        const settings = getSettings();
+        
+        // Create overlay for vertical line
+        const svgWidth = 12;
+        const svg = createOverlaySVG(svgWidth, height);
+        svg.style.top = '0';
+        svg.style.left = '50%';
+        svg.style.transform = 'translateX(-50%)';
+        
+        // Draw wavy vertical line
+        const roughOpts = {
+            roughness: MASTER_SETTINGS.roughness,
+            bowing: MASTER_SETTINGS.bowing,
+            seed: Math.random() * 10000,
+        };
+        drawRoughShape(svg, generator.line(svgWidth / 2, 0, svgWidth / 2, height, roughOpts), color, settings);
+        
+        // Hide original border, show our line
+        el.style.position = 'relative';
+        el.style.borderRightColor = 'transparent';
+        el.appendChild(svg);
+        count++;
+    });
+    
+    return count;
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// PROCESSOR 11: VECTOR ARROWS
+// Target: .accent .overlay svg (small vector arrows from \vec{})
+// Handles: \vec{F}, \vec{r}, etc.
+// ════════════════════════════════════════════════════════════════════════════════
+
+function processVectorArrows() {
+    let count = 0;
+    
+    // Find all small vector arrows: .overlay > svg with viewBox containing 471
+    document.querySelectorAll('.overlay svg').forEach(svg => {
+        if (svg.dataset.hwk) return;
+        
+        const viewBox = svg.getAttribute('viewBox');
+        if (!viewBox || !viewBox.includes('471')) return; // Only small vec arrows
+        
+        svg.dataset.hwk = 'vec-arrow';
+        
+        const rect = svg.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+        if (width < 3 || height < 3) return;
+        
+        const color = getColor(svg);
+        const settings = getSettings();
+        settings.size = Math.max(1.5, Math.min(3, height / 8));
+        
+        // Clear original path
+        clearSVG(svg);
+        
+        // Set viewBox to match actual size for easier drawing
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        
+        // Draw hand-drawn arrow pointing right →
+        // Arrow shape: horizontal line with arrowhead
+        const roughOpts = {
+            roughness: MASTER_SETTINGS.roughness * 1.2,
+            bowing: MASTER_SETTINGS.bowing,
+            seed: Math.random() * 10000,
+        };
+        
+        const midY = height * 0.55; // Slightly below center
+        const arrowTipX = width - 2;
+        const arrowStartX = 2;
+        const arrowSize = Math.min(height * 0.35, width * 0.3, 6);
+        
+        // Main horizontal line
+        drawRoughShape(svg, generator.line(arrowStartX, midY, arrowTipX - 1, midY, roughOpts), color, settings);
+        
+        // Arrowhead - top line
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(arrowTipX, midY, arrowTipX - arrowSize, midY - arrowSize, roughOpts), color, settings);
+        
+        // Arrowhead - bottom line
+        roughOpts.seed = Math.random() * 10000;
+        drawRoughShape(svg, generator.line(arrowTipX, midY, arrowTipX - arrowSize, midY + arrowSize, roughOpts), color, settings);
+        
+        count++;
+    });
+    
+    return count;
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
 // MAIN API
 // ════════════════════════════════════════════════════════════════════════════════
 
@@ -979,6 +1162,8 @@ export async function applyHandwritingGeometry() {
         cancel: processCancel(),
         strike: processStrikethrough(),
         boxed: processBoxed(),
+        tableLines: processTableLines(),
+        vectorArrows: processVectorArrows(),  // NEW! Small \vec{} arrows
     };
     
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -1001,6 +1186,7 @@ export function clearHandwritingGeometry() {
     document.querySelectorAll('[data-hwk]').forEach(el => { 
         el.removeAttribute('data-hwk'); 
         el.style.borderBottomColor = ''; 
+        el.style.borderRightColor = '';  // For table vertical lines
         el.style.opacity = ''; 
         el.style.border = ''; 
     });
