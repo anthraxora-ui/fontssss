@@ -63,13 +63,13 @@ const MASTER_SETTINGS = {
     strokeSize: 3.0,          // Base stroke thickness [1.5 - 5.0] bigger = thicker lines
     thinning: 0.25,           // Pressure variation [-0.1 - 0.5] higher = more thin/thick variation
     smoothing: 0.4,           // Curve smoothing [0 - 1] lower = more sketchy
-    streamline: 0.4,          // Path simplification [0 - 1] lower = more wobbly
+    streamline: 0.1,          // Path simplification [0 - 1] lower = more wobbly
     
     // ═══════════════════════════════════════════════════════════════════════════
     // ROUGH.JS SETTINGS (hand-drawn feel)
     // ═══════════════════════════════════════════════════════════════════════════
     
-    roughness: 2.0,           // Line roughness [0.5 - 3.5] higher = more wobbly/sketchy
+    roughness: 3.0,           // Line roughness [0.5 - 3.5] higher = more wobbly/sketchy
     bowing: 1.4,              // Line bowing [0.3 - 3.0] higher = more curved lines
     
     // ═══════════════════════════════════════════════════════════════════════════
