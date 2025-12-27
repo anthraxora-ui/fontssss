@@ -130,18 +130,33 @@ function getSettings() {
 // ════════════════════════════════════════════════════════════════════════════════
 
 /**
- * Interpolate points along a line for smooth hand-drawn effect
+ * Interpolate points along a line for hand-drawn effect
+ * Includes wave pattern and random wobble for sketchy look
  */
 function interpolateLine(p0, p1) {
     const points = [];
     const distance = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
-    const steps = Math.max(10, Math.ceil(distance / 2.5));
+    const steps = Math.max(15, Math.ceil(distance / 2.5));
+    
+    // Calculate perpendicular direction for wobble
+    const dx = p1[0] - p0[0];
+    const dy = p1[1] - p0[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const perpX = -dy / len;
+    const perpY = dx / len;
     
     for (let i = 0; i <= steps; i++) { 
         const t = i / steps;
-        const x = p0[0] + (p1[0] - p0[0]) * t;
-        const y = p0[1] + (p1[1] - p0[1]) * t;
-        const pressure = 0.35 + Math.sin(t * Math.PI) * 0.35 + Math.random() * 0.08;
+        let x = p0[0] + (p1[0] - p0[0]) * t;
+        let y = p0[1] + (p1[1] - p0[1]) * t;
+        
+        // Add WAVY wobble perpendicular to line direction
+        const waveAmount = Math.sin(t * Math.PI * 3) * distance * 0.015;  // Wave pattern
+        const randomWobble = (Math.random() - 0.5) * distance * 0.02;     // Random jitter
+        x += perpX * (waveAmount + randomWobble);
+        y += perpY * (waveAmount + randomWobble);
+        
+        const pressure = 0.25 + Math.sin(t * Math.PI) * 0.45 + Math.random() * 0.15;
         points.push([x, y, pressure]); 
     }
     return points;
@@ -391,20 +406,25 @@ function processSquareRoots() {
         const settings = getSettings();
         settings.size = Math.max(22, Math.min(85, vbHeight / 14));
         
-        // EXTRA ROUGHNESS for sqrt - make it more sketchy!
-        const sqrtRoughness = Math.min(3.5, settings.roughness * 1.5);
-        const sqrtBowing = Math.min(2.8, settings.bowing * 1.4);
-        
-        // Rough.js options - THIS IS THE KEY! Pass roughness/bowing here!
+        // MAXIMUM ROUGHNESS for sqrt - very sketchy and wavy!
         const roughOpts = {
-            roughness: sqrtRoughness,
-            bowing: sqrtBowing,
-            seed: settings.seed,
-            disableMultiStroke: true,
+            roughness: 3.5,           // Maximum rough!
+            bowing: 3.0,              // Maximum curved!
+            seed: Math.floor(Math.random() * 10000),
+            disableMultiStroke: false, // Allow multiple strokes for sketch effect
+            strokeWidth: 1,
         };
         
-        // Square root shape parameters with slight random wobble
-        const wobble = () => (Math.random() - 0.5) * vbHeight * 0.025;
+        // Perfect-freehand settings for sqrt - more variation
+        const sqrtSettings = {
+            ...settings,
+            thinning: 0.4,      // More pressure variation
+            smoothing: 0.2,     // Less smooth = more rough
+            streamline: 0.2,    // Less streamline = more wobbly
+        };
+        
+        // Square root shape with MORE wobble for wavy look (6%)
+        const wobble = () => (Math.random() - 0.5) * vbHeight * 0.06;
         const surdWidth = Math.min(vbHeight * 0.85, 850);
         const topY = vbHeight * 0.04 + wobble();
         const bottomY = vbHeight * 0.96 + wobble();
@@ -415,19 +435,19 @@ function processSquareRoots() {
         
         // Hook
         roughOpts.seed = Math.floor(Math.random() * 10000);
-        drawRoughShape(svg, generator.line(0, midY + vbHeight * 0.06, surdWidth * 0.32 + wobble(), midY, roughOpts), color, settings);
+        drawRoughShape(svg, generator.line(0, midY + vbHeight * 0.06, surdWidth * 0.32 + wobble(), midY, roughOpts), color, sqrtSettings);
         
         // Down stroke
         roughOpts.seed = Math.floor(Math.random() * 10000);
-        drawRoughShape(svg, generator.line(surdWidth * 0.32, midY, surdWidth * 0.52 + wobble(), bottomY, roughOpts), color, settings);
+        drawRoughShape(svg, generator.line(surdWidth * 0.32, midY, surdWidth * 0.52 + wobble(), bottomY, roughOpts), color, sqrtSettings);
         
         // Up stroke (the main diagonal)
         roughOpts.seed = Math.floor(Math.random() * 10000);
-        drawRoughShape(svg, generator.line(surdWidth * 0.52, bottomY, surdWidth + wobble(), topY, roughOpts), color, settings);
+        drawRoughShape(svg, generator.line(surdWidth * 0.52, bottomY, surdWidth + wobble(), topY, roughOpts), color, sqrtSettings);
         
         // Vinculum (top bar)
         roughOpts.seed = Math.floor(Math.random() * 10000);
-        drawRoughShape(svg, generator.line(surdWidth - 25, topY, vbWidth, topY + wobble() * 0.5, roughOpts), color, settings);
+        drawRoughShape(svg, generator.line(surdWidth - 25, topY, vbWidth, topY + wobble() * 0.5, roughOpts), color, sqrtSettings);
         
         count++;
     });
