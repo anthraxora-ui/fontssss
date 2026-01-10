@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Euler Math - Pure CSS/MathML Test</title>
+    
+    <style>
+        @font-face {
+            font-family: 'Euler Math Handwritten';
+            src: url('Euler-Math_COMPLETE_ALL_CHARS_30VARS.svg#EulerMath') format('svg');
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #FF5722;
+            padding-bottom: 10px;
+        }
+        
+        .math-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #fafafa;
+            border-left: 4px solid #9C27B0;
+        }
+        
+        .math-section h2 {
+            margin-top: 0;
+            color: #9C27B0;
+        }
+        
+        /* Apply Euler Math font to all math elements */
+        math, .math {
+            font-family: 'Euler Math Handwritten', serif !important;
+            font-size: 18px;
+        }
+        
+        /* MathML styling */
+        math {
+            display: inline-block;
+            margin: 5px;
+        }
+        
+        math[display="block"] {
+            display: block;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 22px;
+        }
+        
+        .equation {
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+        }
+        
+        .label {
+            font-weight: bold;
+            color: #666;
+            margin-right: 10px;
+            font-family: Arial, sans-serif;
+        }
+        
+        /* Fallback CSS math styling */
+        .math {
+            font-style: italic;
+        }
+        
+        .frac {
+            display: inline-block;
+            vertical-align: middle;
+            text-align: center;
+        }
+        
+        .frac .num {
+            display: block;
+            border-bottom: 1px solid black;
+            padding-bottom: 2px;
+        }
+        
+        .frac .den {
+            display: block;
+            padding-top: 2px;
+        }
+        
+        .sqrt {
+            position: relative;
+            padding-left: 5px;
+        }
+        
+        .sqrt::before {
+            content: '√';
+            position: absolute;
+            left: -5px;
+            font-size: 1.2em;
+        }
+        
+        sup {
+            font-size: 0.7em;
+            vertical-align: super;
+        }
+        
+        sub {
+            font-size: 0.7em;
+            vertical-align: sub;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖋️ Euler Math - Pure CSS/MathML Test</h1>
+        <p><strong>Font:</strong> Euler-Math with 30 handwritten variations</p>
+        <p><strong>Renderer:</strong> Native MathML + CSS Fallback</p>
+        
+        <div class="math-section">
+            <h2>MathML Examples (if supported)</h2>
+            
+            <div class="equation">
+                <span class="label">Quadratic Formula:</span>
+                <math display="block">
+                    <mi>x</mi>
+                    <mo>=</mo>
+                    <mfrac>
+                        <mrow>
+                            <mo>-</mo>
+                            <mi>b</mi>
+                            <mo>±</mo>
+                            <msqrt>
+                                <msup><mi>b</mi><mn>2</mn></msup>
+                                <mo>-</mo>
+                                <mn>4</mn>
+                                <mi>a</mi>
+                                <mi>c</mi>
+                            </msqrt>
+                        </mrow>
+                        <mrow>
+                            <mn>2</mn>
+                            <mi>a</mi>
+                        </mrow>
+                    </mfrac>
+                </math>
+            </div>
+            
+            <div class="equation">
+                <span class="label">Euler's Identity:</span>
+                <math display="block">
+                    <msup>
+                        <mi>e</mi>
+                        <mrow>
+                            <mi>i</mi>
+                            <mi>π</mi>
+                        </mrow>
+                    </msup>
+                    <mo>+</mo>
+                    <mn>1</mn>
+                    <mo>=</mo>
+                    <mn>0</mn>
+                </math>
+            </div>
+            
+            <div class="equation">
+                <span class="label">Pythagorean Theorem:</span>
+                <math display="block">
+                    <msup><mi>a</mi><mn>2</mn></msup>
+                    <mo>+</mo>
+                    <msup><mi>b</mi><mn>2</mn></msup>
+                    <mo>=</mo>
+                    <msup><mi>c</mi><mn>2</mn></msup>
+                </math>
+            </div>
+        </div>
+        
+        <div class="math-section">
+            <h2>CSS Fallback Math</h2>
+            
+            <div class="equation">
+                <span class="label">Quadratic Formula (CSS):</span>
+                <div style="text-align: center; font-size: 20px;">
+                    <span class="math">
+                        x = 
+                        <span class="frac">
+                            <span class="num">-b ± <span class="sqrt">b² - 4ac</span></span>
+                            <span class="den">2a</span>
+                        </span>
+                    </span>
+                </div>
+            </div>
+            
+            <div class="equation">
+                <span class="label">Energy-Mass Equivalence:</span>
+                <div style="text-align: center; font-size: 24px;">
+                    <span class="math">E = mc²</span>
+                </div>
+            </div>
+            
+            <div class="equation">
+                <span class="label">Area of Circle:</span>
+                <div style="text-align: center; font-size: 24px;">
+                    <span class="math">A = πr²</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="math-section">
+            <h2>Greek Letters (Direct Unicode)</h2>
+            <div class="equation" style="text-align: center; font-size: 28px;">
+                <span class="math">
+                    α β γ δ ε ζ η θ ι κ λ μ ν ξ π ρ σ τ υ φ χ ψ ω
+                </span>
+            </div>
+            <div class="equation" style="text-align: center; font-size: 28px;">
+                <span class="math">
+                    Γ Δ Θ Λ Ξ Π Σ Φ Ψ Ω
+                </span>
+            </div>
+        </div>
+        
+        <div class="math-section">
+            <h2>More Complex Equations</h2>
+            
+            <div class="equation">
+                <span class="label">Integral:</span>
+                <math display="block">
+                    <msubsup>
+                        <mo>∫</mo>
+                        <mi>a</mi>
+                        <mi>b</mi>
+                    </msubsup>
+                    <mi>f</mi>
+                    <mo>(</mo>
+                    <mi>x</mi>
+                    <mo>)</mo>
+                    <mi>d</mi>
+                    <mi>x</mi>
+                </math>
+            </div>
+            
+            <div class="equation">
+                <span class="label">Summation:</span>
+                <math display="block">
+                    <munderover>
+                        <mo>∑</mo>
+                        <mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow>
+                        <mi>n</mi>
+                    </munderover>
+                    <msup>
+                        <mi>i</mi>
+                        <mn>2</mn>
+                    </msup>
+                    <mo>=</mo>
+                    <mfrac>
+                        <mrow>
+                            <mi>n</mi>
+                            <mo>(</mo>
+                            <mi>n</mi>
+                            <mo>+</mo>
+                            <mn>1</mn>
+                            <mo>)</mo>
+                            <mo>(</mo>
+                            <mn>2</mn>
+                            <mi>n</mi>
+                            <mo>+</mo>
+                            <mn>1</mn>
+                            <mo>)</mo>
+                        </mrow>
+                        <mn>6</mn>
+                    </mfrac>
+                </math>
+            </div>
+        </div>
+        
+        <div class="math-section">
+            <h2>Inline Math in Text</h2>
+            <p>
+                The solution to the equation <math><mi>x</mi><mo>+</mo><mn>5</mn><mo>=</mo><mn>12</mn></math> 
+                is simply <math><mi>x</mi><mo>=</mo><mn>7</mn></math>.
+            </p>
+            <p>
+                The derivative of <math><msup><mi>x</mi><mn>2</mn></msup></math> 
+                is <math><mn>2</mn><mi>x</mi></math>.
+            </p>
+            <p>
+                Einstein showed that <math><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></math>, 
+                where <math><mi>c</mi></math> is the speed of light.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
